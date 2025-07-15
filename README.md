@@ -21,7 +21,7 @@ Safe & Fast human language queries with write permission protection
 
 ### Environment Variable File Structure
 
-This project uses a centralized configuration system. All database connection information is managed in the `env.yml` file in the project root.
+This project manages environment variables through yaml files.
 
 ```yaml
 # env.yml example
@@ -55,79 +55,6 @@ This MCP server implements the following security mechanisms to ensure database 
 1. **Connection-time Permission Check**: Checks user permissions when creating database connections
 2. **Read-only Enforcement**: Immediately rejects connections if write permissions are detected
 3. **Permission Analysis**: Comprehensive analysis of `read_only`, `super_read_only` variables and user permissions
-4. **Centralized Configuration**: Configuration is loaded only once at server startup to ensure consistency
-
-### Permission Check Logic
-
-- **Read-only Node**: When `read_only=ON` or `super_read_only=ON`
-  - Allows read-only if no SUPER permission
-  - Rejects connection if SUPER permission exists (can write)
-  
-- **Writable Node**: When `read_only=OFF` and `super_read_only=OFF`
-  - Allows read-only if no INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, ALL PRIVILEGES, EXECUTE permissions
-  - Rejects connection if any of the above permissions exist (can write)
-
-### Local Test Environment Setup
-
-#### Method 1: Integrated Environment using Docker Compose
-
-Using Docker Compose, you can run both MySQL database and MCP server together.
-
-1. **Create Configuration File**
-   ```bash
-   cp env.example.yml env.yml
-   ```
-
-2. **Run Docker Compose**
-   ```bash
-   docker-compose up -d
-   ```
-   This command automatically configures:
-   - MySQL 8.0 database (port 3306)
-   - MCP server container (port 3000)
-   - Automatic creation of read-only and write-permission users
-   - Sample database and table initialization
-
-3. **Shutdown Environment**
-   ```bash
-   docker-compose down -v  # Also removes volumes
-   ```
-
-#### Method 2: Standalone Local Development Environment
-
-If you already have MySQL database installed or are using a remote database:
-
-1. **Install Dependencies**
-   ```bash
-   pnpm install
-   ```
-
-2. **Configure Environment**
-   ```bash
-   cp env.example.yml env.yml
-   ```
-   Open `env.yml` file and update with actual database connection info:
-   - host: Database host address
-   - user: User with read-only permissions
-   - password: User's password
-
-3. **Run Development Server**
-   ```bash
-   pnpm dev
-   ```
-   Development server runs at http://localhost:3000.
-
-4. **Run Tests**
-   ```bash
-   # Run all tests
-   pnpm test
-
-   # Run tests in watch mode
-   pnpm test:watch
-
-   # Run tests with coverage
-   pnpm test:coverage
-   ```
 
 ## Available Tools
 
@@ -169,3 +96,91 @@ If you already have MySQL database installed or are using a remote database:
    - Comprehensive guide for using Ansible Database MCP
    - URI: `guide://ansible-database-mcp`
    - Returns markdown formatted guide with usage instructions and best practices
+
+
+## Docker Deployment
+
+The MCP server can be deployed as a Docker image. The configuration file (`env.yml`) is mounted at runtime.
+
+```bash
+# Build Docker image
+docker build -t ansible-database-mcp .
+
+# Run Docker container
+docker run -d \
+  -v ./env.yml:/config/env.yml:ro \
+  -p 3000:3000 \
+  ansible-database-mcp
+```
+
+You can use a different configuration file using the `DATABASE_CONFIG_FILE` environment variable.
+
+```bash
+docker run \
+  -v ./env.yml:/config/custom-config.yml:ro \
+  -p 3000:3000 \
+  -e DATABASE_CONFIG_FILE=custom-config.yml \
+  ansible-database-mcp
+```
+
+## Local Test Environment Setup
+
+### Method 1: Integrated Environment using Docker Compose
+
+Using Docker Compose, you can run both MySQL database and MCP server together.
+
+1. **Create Configuration File**
+   ```bash
+   cp env.example.yml env.yml
+   ```
+
+2. **Run Docker Compose**
+   ```bash
+   docker-compose up -d
+   ```
+   This command automatically configures:
+   - MySQL 8.0 database (port 3306)
+   - MCP server container (port 3000)
+   - Automatic creation of read-only and write-permission users
+   - Sample database and table initialization
+
+3. **Shutdown Environment**
+   ```bash
+   docker-compose down -v  # Also removes volumes
+   ```
+
+### Method 2: Standalone Local Development Environment
+
+If you already have MySQL database installed or are using a remote database:
+
+1. **Install Dependencies**
+   ```bash
+   pnpm install
+   ```
+
+2. **Configure Environment**
+   ```bash
+   cp env.example.yml env.yml
+   ```
+   Open `env.yml` file and update with actual database connection info:
+   - host: Database host address
+   - user: User with read-only permissions
+   - password: User's password
+
+3. **Run Development Server**
+   ```bash
+   pnpm dev
+   ```
+   Development server runs at http://localhost:3000.
+
+4. **Run Tests**
+   ```bash
+   # Run all tests
+   pnpm test
+
+   # Run tests in watch mode
+   pnpm test:watch
+
+   # Run tests with coverage
+   pnpm test:coverage
+   ```
