@@ -22,6 +22,6 @@ else
   echo "[Entrypoint] No custom context file found at /config/context.md, using default"
 fi
 
-# 원래 애플리케이션 실행
 echo "[Entrypoint] Starting MCP server..."
-exec node dist/main.js
+
+exec "$@"

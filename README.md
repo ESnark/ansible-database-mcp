@@ -25,7 +25,7 @@ This project manages environment variables through yaml files.
 
 ```yaml
 # env.yml example
-database_name:
+test_db:
   client: mysql2
   connection:
     host: localhost
@@ -37,16 +37,15 @@ database_name:
     min: 1
     max: 5
     idleTimeoutMillis: 10000
-  description: Database description
+  description: >
+    Database description.
+    Used for context when generating queries.
 ```
 
 ### Environment Variable File Location
 
 - Default location: `env.yml` in the project root directory
-- Use different file name: Can be specified with `DATABASE_CONFIG_FILE` environment variable
-  ```bash
-  DATABASE_CONFIG_FILE=production.yml pnpm start
-  ```
+- Docker deployment: Mount to `/config/env.yml`
 
 ## Security Features
 
@@ -135,17 +134,10 @@ The context file should contain relevant contextual information about your datab
 
 This file is used by MCP tools to enhance the interpretability of query results.
 
-### Different Configuration File
+### Configuration Notes
 
-You can use a different configuration file using the `DATABASE_CONFIG_FILE` environment variable:
-
-```bash
-docker run \
-  -v ./env.yml:/config/custom-config.yml:ro \
-  -p 3000:3000 \
-  -e DATABASE_CONFIG_FILE=custom-config.yml \
-  ansible-database-mcp
-```
+- The configuration file must be mounted to `/config/env.yml`
+- The context file should be mounted to `/config/context.md`
 
 ## Local Test Environment Setup
 
@@ -153,58 +145,27 @@ docker run \
 
 Using Docker Compose, you can run both MySQL database and MCP server together.
 
-1. **Create Configuration File**
-   ```bash
-   cp env.example.yml env.yml
-   ```
+```bash
+cp env.example.yml env.yml
 
-2. **Run Docker Compose**
-   ```bash
-   docker-compose up -d
-   ```
-   This command automatically configures:
-   - MySQL 8.0 database (port 3306)
-   - MCP server container (port 3000)
-   - Automatic creation of read-only and write-permission users
-   - Sample database and table initialization
-
-3. **Shutdown Environment**
-   ```bash
-   docker-compose down -v  # Also removes volumes
-   ```
+docker-compose up -d
+```
 
 ### Method 2: Standalone Local Development Environment
 
 If you already have MySQL database installed or are using a remote database:
 
-1. **Install Dependencies**
-   ```bash
-   pnpm install
-   ```
+```bash
+pnpm install
 
-2. **Configure Environment**
-   ```bash
-   cp env.example.yml env.yml
-   ```
-   Open `env.yml` file and update with actual database connection info:
-   - host: Database host address
-   - user: User with read-only permissions
-   - password: User's password
+cp env.example.yml env.yml
 
-3. **Run Development Server**
-   ```bash
-   pnpm dev
-   ```
-   Development server runs at http://localhost:3000.
+pnpm dev
 
-4. **Run Tests**
-   ```bash
-   # Run all tests
-   pnpm test
-
-   # Run tests in watch mode
-   pnpm test:watch
-
-   # Run tests with coverage
-   pnpm test:coverage
-   ```
+# Run all tests
+pnpm test
+# Run tests in watch mode
+pnpm test:watch
+# Run tests with coverage
+pnpm test:coverage
+```
