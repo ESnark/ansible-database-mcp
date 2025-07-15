@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { echo, query, connectionInfo, listTables, getTable } from './tools/index.js';
 import * as guide from './resources/guide.js';
+import * as context from './resources/context.js';
 
 export const mcpMiddleware = async (req: Request, res: Response) => {
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
@@ -12,7 +13,7 @@ export const mcpMiddleware = async (req: Request, res: Response) => {
       name: 'ansible-database',
       version: '1.0.0',
     }, {
-      instructions: `Check out the 'ansible-database-mcp-guide' resource first`,
+      instructions: `Check out the 'ansible-database-mcp-guide' resource for usage instructions and 'database-context' resource for database and table context information`,
       capabilities: { 
         tools: {},
         resources: {}
@@ -59,6 +60,17 @@ export const mcpMiddleware = async (req: Request, res: Response) => {
         mimeType: guide.definition.mimeType,
       },
       guide.definition.handler
+    );
+
+    server.registerResource(
+      context.definition.name,
+      context.definition.uri,
+      {
+        title: context.definition.title,
+        description: context.definition.description,
+        mimeType: context.definition.mimeType,
+      },
+      context.definition.handler
     );
 
     await server.connect(transport);

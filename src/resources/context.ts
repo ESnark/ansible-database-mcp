@@ -3,24 +3,25 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export const definition: ResourceDefinition = {
-  name: 'ansible-database-mcp-guide',
-  uri: 'guide://ansible-database-mcp',
-  title: 'Ansible Database MCP Guide',
-  description: 'Comprehensive guide for using Ansible Database MCP',
+  name: 'database-context',
+  uri: 'context://ansible-database-mcp',
+  title: 'Database Context',
+  description: 'Contextual information about databases and tables',
   mimeType: 'text/markdown',
   handler: async (uri, extra) => {
-    const guidePath = join(__dirname, '../assets/guide.md');
-    const guideContent = readFileSync(guidePath, 'utf-8');
+    const contextPath = join(__dirname, '../assets/context.md');
+    const contextContent = readFileSync(contextPath, 'utf-8');
     
     return {
       contents: [
         {
           uri: uri.toString(),
           mimeType: definition.mimeType,
-          text: guideContent,
+          text: contextContent,
         }
       ]
     };
