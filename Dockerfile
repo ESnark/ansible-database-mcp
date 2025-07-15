@@ -4,7 +4,7 @@ RUN npm install -g pnpm
 
 WORKDIR /app
 
-COPY package*.json pnpm-lock.yaml tsconfig.json ./
+COPY package*.json pnpm-lock.yaml tsconfig.json tsup.config.ts ./
 
 RUN pnpm install
 
