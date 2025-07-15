@@ -13,7 +13,9 @@ export const definition: ResourceDefinition = {
   description: 'Contextual information about databases and tables',
   mimeType: 'text/markdown',
   handler: async (uri, extra) => {
-    const contextPath = join(__dirname, '../assets/context.md');
+    const contextPath = process.env.NODE_ENV === 'development'
+      ? join(__dirname, './context.md')
+      : join(__dirname, './assets/context.md');
     const contextContent = readFileSync(contextPath, 'utf-8');
     
     return {

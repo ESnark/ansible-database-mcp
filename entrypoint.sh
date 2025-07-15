@@ -1,6 +1,5 @@
 #!/bin/sh
 
-# 마운트된 설정 파일이 있는지 확인
 if [ -f /config/env.yml ]; then
   echo "[Entrypoint] Found configuration file at /config/env.yml"
   cp /config/env.yml /app/env.yml
@@ -12,8 +11,16 @@ else
   exit 1
 fi
 
-# 설정 파일 내용 확인 (디버깅용 - 민감한 정보가 있다면 제거 가능)
 echo "[Entrypoint] Configuration file exists with $(wc -l < /app/env.yml) lines"
+
+if [ -f /config/context.md ]; then
+  echo "[Entrypoint] Found context file at /config/context.md"
+  mkdir -p /app/dist/assets
+  cp /config/context.md /app/dist/assets/context.md
+  echo "[Entrypoint] Context file copied to /app/dist/assets/context.md"
+else
+  echo "[Entrypoint] No custom context file found at /config/context.md, using default"
+fi
 
 # 원래 애플리케이션 실행
 echo "[Entrypoint] Starting MCP server..."

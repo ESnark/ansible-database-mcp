@@ -12,7 +12,9 @@ export const definition: ResourceDefinition = {
   description: 'Comprehensive guide for using Ansible Database MCP',
   mimeType: 'text/markdown',
   handler: async (uri, extra) => {
-    const guidePath = join(__dirname, '../assets/guide.md');
+    const guidePath = process.env.NODE_ENV === 'development'
+      ? join(__dirname, './guide.md')
+      : join(__dirname, './assets/guide.md');
     const guideContent = readFileSync(guidePath, 'utf-8');
     
     return {

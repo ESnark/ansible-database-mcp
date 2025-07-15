@@ -97,6 +97,12 @@ This MCP server implements the following security mechanisms to ensure database 
    - URI: `guide://ansible-database-mcp`
    - Returns markdown formatted guide with usage instructions and best practices
 
+2. **database-context**
+   - Contextual information about databases and tables
+   - URI: `context://ansible-database-mcp`
+   - Returns markdown formatted database documentation
+   - Can be customized by mounting your own context.md file in Docker
+
 
 ## Docker Deployment
 
@@ -113,7 +119,25 @@ docker run -d \
   ansible-database-mcp
 ```
 
-You can use a different configuration file using the `DATABASE_CONFIG_FILE` environment variable.
+### Context File
+
+You can provide a database context file:
+
+```bash
+docker run -d \
+  -v ./env.yml:/config/env.yml:ro \
+  -v ./context.md:/config/context.md:ro \
+  -p 3000:3000 \
+  ansible-database-mcp
+```
+
+The context file should contain relevant contextual information about your database, such as usage guidelines, data relationships, or business rules.
+
+This file is used by MCP tools to enhance the interpretability of query results.
+
+### Different Configuration File
+
+You can use a different configuration file using the `DATABASE_CONFIG_FILE` environment variable:
 
 ```bash
 docker run \

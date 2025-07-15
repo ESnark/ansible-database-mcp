@@ -11,7 +11,7 @@
   "scripts": {
     "build": "tsup",
     "start": "node dist/main.js",
-    "dev": "nodemon --exec tsx src/main.ts",
+    "dev": "NODE_ENV=development nodemon --exec tsx src/main.ts",
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"

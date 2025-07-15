@@ -13,7 +13,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Project root path (two levels up from src/config)
-const PROJECT_ROOT = path.resolve(__dirname, '../..');
+const PROJECT_ROOT = process.env.NODE_ENV === 'development'
+  ? path.resolve(__dirname, '../..')
+  : path.resolve(__dirname, '..');
 
 // Database configuration schema
 const DatabaseConfigSchema = z.object({
