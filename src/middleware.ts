@@ -1,0 +1,78 @@
+import { Request, Response } from "express";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { echo, query, connectionInfo, listTables, getTable } from './tools/index.js';
+import * as guide from './resources/guide.js';
+
+export const mcpMiddleware = async (req: Request, res: Response) => {
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+
+  try {
+    const server = new McpServer({
+      name: 'ansible-database',
+      version: '1.0.0',
+    }, {
+      instructions: `Check out the 'ansible-database-mcp-guide' resource first`,
+      capabilities: { 
+        tools: {},
+        resources: {}
+      },
+    });
+
+    res.on('close', () => {
+      console.log('session closed');
+      transport.close();
+      server.close();
+    });
+
+    server.registerTool(echo.definition.name, {
+      description: echo.definition.description,
+      inputSchema: echo.definition.inputSchema
+    }, echo.handler);
+
+    server.registerTool(connectionInfo.definition.name, {
+      description: connectionInfo.definition.description,
+      inputSchema: connectionInfo.definition.inputSchema
+    }, connectionInfo.handler);
+
+    server.registerTool(query.definition.name, {
+      description: query.definition.description,
+      inputSchema: query.definition.inputSchema
+    }, query.handler);
+
+    server.registerTool(listTables.definition.name, {
+      description: listTables.definition.description,
+      inputSchema: listTables.definition.inputSchema
+    }, listTables.handler);
+
+    server.registerTool(getTable.definition.name, {
+      description: getTable.definition.description,
+      inputSchema: getTable.definition.inputSchema
+    }, getTable.handler);
+
+    server.registerResource(
+      guide.definition.name,
+      guide.definition.uri,
+      {
+        title: guide.definition.title,
+        description: guide.definition.description,
+        mimeType: guide.definition.mimeType,
+      },
+      guide.definition.handler
+    );
+
+    await server.connect(transport);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32603,
+        message: 'Internal server error',
+      },
+      id: null,
+    });
+  }
+
+  await transport.handleRequest(req, res, req.body);
+}
