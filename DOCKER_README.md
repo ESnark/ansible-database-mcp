@@ -38,21 +38,20 @@ mydb:
     Used for context when generating queries.
 ```
 
-### 2. context.md - AI Context Information
+### 2. context.md - AI Context Information (Optional)
 
-Create a `context.md` file with database schema and business context:
+Create a `context.md` file with business context and terminology definitions:
 
 ```markdown
 # Database Context
 
-## Tables
-- users: User information table
-- orders: Order records
-- products: Product catalog
+## Business Context
+- Define domain-specific terms and concepts
+- Explain business rules and relationships
+- Document any special conventions or naming patterns
 
-## Business Rules
-- Active users have status = 'active'
-- Orders can have status: pending, completed, cancelled
+Note: Database schema can be discovered automatically through MCP tools.
+Providing context helps with faster and more accurate queries, but is not required.
 ```
 
 ### Running with Configuration

@@ -1,7 +1,3 @@
-# Ansible Database MCP Guide
-
-Ansible Database MCP is a Model Context Protocol server that provides secure read-only database access.
-
 As a data specialist, you need to query and retrieve the requested data. Follow these guidelines:
 
 - Check the table structure first before writing queries

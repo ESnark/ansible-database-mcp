@@ -4,7 +4,7 @@ Safe & Fast human language queries with write permission protection
 ## Key Features
 
 - **Write Permission Check**: Automatically checks write permissions on database connection and only allows read-only connections
-- **MySQL Support**: Secure read-only access to MySQL databases
+- **Multi-Database Support**: Secure read-only access to MySQL and PostgreSQL databases
 - **MCP Protocol**: AI tool integration through Model Context Protocol
 - **Connection Pooling**: Efficient database connection management
 
@@ -25,7 +25,9 @@ This project manages environment variables through yaml files.
 
 ```yaml
 # env.yml example
-test_db:
+
+# MySQL database configuration
+database_1:
   client: mysql2
   connection:
     host: localhost
@@ -37,15 +39,31 @@ test_db:
     min: 1
     max: 5
     idleTimeoutMillis: 10000
-  description: >
-    Database description.
-    Used for context when generating queries.
+  description: MySQL database description
+
+# PostgreSQL database configuration
+database_2:
+  client: pg
+  connection:
+    host: localhost
+    port: 5432
+    user: readonly_user
+    password: your_password
+    database: your_database
+  pool:
+    min: 1
+    max: 5
+    idleTimeoutMillis: 10000
+  description: PostgreSQL database description
 ```
 
 ### Environment Variable File Location
 
 - Default location: `env.yml` in the project root directory
-- Docker deployment: Mount to `/config/env.yml`
+- Use different config file: Specify with `DATABASE_CONFIG_FILE` environment variable
+  ```bash
+  DATABASE_CONFIG_FILE=production.yml pnpm start
+  ```
 
 ## Security Features
 
@@ -78,34 +96,33 @@ This MCP server implements the following security mechanisms to ensure database 
      - `database` (required): Database name to list tables from
 
 4. **get-table**
-   - Get detailed information about a specific table
+   - Get detailed information about a specific table (columns, indexes, constraints)
    - Parameters:
      - `database` (required): Database name
      - `table` (required): Table name
-     - `schema` (optional): Schema name
-
-5. **echo**
-   - Echo a message back
-   - Parameters:
-     - `message` (required): Message to echo
+     - `info_type` (optional): Type of information to retrieve (columns, indexes, constraints, all - default: all)
 
 ### MCP Resources
 
-1. **ansible-database-mcp-guide**
-   - Comprehensive guide for using Ansible Database MCP
-   - URI: `guide://ansible-database-mcp`
-   - Returns markdown formatted guide with usage instructions and best practices
-
-2. **database-context**
+1. **database-context**
    - Contextual information about databases and tables
    - URI: `context://ansible-database-mcp`
-   - Returns markdown formatted database documentation
-   - Can be customized by mounting your own context.md file in Docker
+   - Custom context explaining business terms and table relationships
+   - Can be customized through `context.md` file
+
+### MCP Prompts
+
+1. **ask**
+   - Guide prompt for asking questions about the database
+   - Parameters:
+     - `question` (required): Question about the database
+     - `use-context` (optional): Whether to include database context
+   - Helps AI create effective database queries
 
 
 ## Docker Deployment
 
-The MCP server can be deployed as a Docker image. The configuration file (`env.yml`) is mounted at runtime.
+The MCP server can be deployed as a Docker image with support for both AMD64 and ARM64 architectures. The configuration file (`env.yml`) is mounted at runtime.
 
 ```bash
 # Build Docker image
@@ -118,26 +135,16 @@ docker run -d \
   ansible-database-mcp
 ```
 
-### Context File
-
-You can provide a database context file:
+You can use `DATABASE_CONFIG_FILE` environment variable to use a different config file:
 
 ```bash
-docker run -d \
-  -v ./env.yml:/config/env.yml:ro \
-  -v ./context.md:/config/context.md:ro \
+docker run \
+  -v ./env.yml:/config/custom-config.yml:ro \
   -p 3000:3000 \
+  -e DATABASE_CONFIG_FILE=custom-config.yml \
   ansible-database-mcp
 ```
 
-The context file should contain relevant contextual information about your database, such as usage guidelines, data relationships, or business rules.
-
-This file is used by MCP tools to enhance the interpretability of query results.
-
-### Configuration Notes
-
-- The configuration file must be mounted to `/config/env.yml`
-- The context file should be mounted to `/config/context.md`
 
 ## Local Test Environment Setup
 
@@ -145,27 +152,64 @@ This file is used by MCP tools to enhance the interpretability of query results.
 
 Using Docker Compose, you can run both MySQL database and MCP server together.
 
-```bash
-cp env.example.yml env.yml
+1. **Create configuration file**
+   ```bash
+   cp env.example.yml env.yml
+   ```
 
-docker-compose up -d
-```
+2. **Run Docker Compose**
+   ```bash
+   docker-compose up -d
+   ```
+   This command automatically sets up:
+   - MySQL 8.0 database (port 3306)
+   - MCP server container (port 3000)
+   - Read-only and write-permission users
+   - Sample database and tables
+
+3. **Shutdown environment**
+   ```bash
+   docker-compose down -v  # Also removes volumes
+   ```
 
 ### Method 2: Standalone Local Development Environment
 
 If you already have MySQL database installed or are using a remote database:
 
-```bash
-pnpm install
+1. **Install dependencies**
+   ```bash
+   pnpm install
+   ```
 
-cp env.example.yml env.yml
+2. **Configure environment**
+   ```bash
+   cp env.example.yml env.yml
+   ```
+   Edit `env.yml` with your actual database connection info:
+   - host: Database host address
+   - user: User with read-only permissions
+   - password: User password
 
-pnpm dev
+3. **Run development server**
+   ```bash
+   pnpm dev
+   ```
+   Development server runs at http://localhost:3000
 
-# Run all tests
-pnpm test
-# Run tests in watch mode
-pnpm test:watch
-# Run tests with coverage
-pnpm test:coverage
-```
+4. **Run tests**
+   ```bash
+   # Run all tests
+   pnpm test
+   
+   # Run tests in watch mode
+   pnpm test:watch
+   
+   # Run tests with coverage
+   pnpm test:coverage
+   ```
+
+## Requirements
+
+- Node.js 22 or higher
+- pnpm package manager
+- MySQL 8.0+ or PostgreSQL 12+ (target database)

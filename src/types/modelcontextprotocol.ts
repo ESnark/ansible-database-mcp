@@ -1,5 +1,5 @@
-import type { ReadResourceCallback } from "@modelcontextprotocol/sdk/server/mcp";
-import { ZodRawShape } from "zod";
+import type { ReadResourceCallback, PromptCallback} from "@modelcontextprotocol/sdk/server/mcp";
+import { ZodOptional, ZodRawShape, ZodType, ZodTypeAny, ZodTypeDef } from "zod";
 
 export interface ToolDefinition {
   name: string;          // Unique identifier for the tool
@@ -15,6 +15,10 @@ export interface ToolDefinition {
   }
 }
 
+type PromptArgsRawShape = {
+  [k: string]: ZodType<string, ZodTypeDef, string> | ZodOptional<ZodType<string, ZodTypeDef, string>>;
+};
+
 export interface ResourceDefinition {
   name: string;          // Unique identifier for the resource
   uri: string;           // Unique resource identifier
@@ -22,6 +26,12 @@ export interface ResourceDefinition {
   description?: string;  // Human-readable description
   mimeType: string;      // MIME type of the resource content
   handler: ReadResourceCallback;
+}
+
+export interface PromptDefinition {
+  name: string;          // Unique identifier for the prompt
+  description?: string;  // Human-readable description
+  arguments?: PromptArgsRawShape;
 }
 
 export type ResourceCallback = () => Promise<{

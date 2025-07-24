@@ -98,9 +98,4 @@ const handler: ToolCallback<typeof definition.inputSchema> = async (args) => {
   }
 };
 
-const getTool = {
-  definition,
-  handler,
-};
-
-export default getTool;
+export { definition, handler };

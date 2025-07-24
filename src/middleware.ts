@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { echo, query, connectionInfo, listTables, getTable } from './tools/index.js';
-import * as guide from './resources/guide.js';
+import { query, connectionInfo, listTables, getTable } from './tools/index.js';
+import * as ask from './prompts/ask.js';
 import * as context from './resources/context.js';
 
 export const mcpMiddleware = async (req: Request, res: Response) => {
@@ -13,10 +13,11 @@ export const mcpMiddleware = async (req: Request, res: Response) => {
       name: 'ansible-database',
       version: '1.0.0',
     }, {
-      instructions: `Check out the 'ansible-database-mcp-guide' resource for usage instructions and 'database-context' resource for database and table context information`,
+      instructions: `Use the 'ask' prompt for usage instructions and 'database-context' resource for database and table context information`,
       capabilities: { 
         tools: {},
-        resources: {}
+        resources: {},
+        prompts: {}
       },
     });
 
@@ -25,11 +26,6 @@ export const mcpMiddleware = async (req: Request, res: Response) => {
       transport.close();
       server.close();
     });
-
-    server.registerTool(echo.definition.name, {
-      description: echo.definition.description,
-      inputSchema: echo.definition.inputSchema
-    }, echo.handler);
 
     server.registerTool(connectionInfo.definition.name, {
       description: connectionInfo.definition.description,
@@ -51,15 +47,17 @@ export const mcpMiddleware = async (req: Request, res: Response) => {
       inputSchema: getTable.definition.inputSchema
     }, getTable.handler);
 
-    server.registerResource(
-      guide.definition.name,
-      guide.definition.uri,
+    server.registerPrompt(
+      ask.definition.name,
       {
-        title: guide.definition.title,
-        description: guide.definition.description,
-        mimeType: guide.definition.mimeType,
+        description: ask.definition.description,
+        argsSchema: ask.definition.arguments
       },
-      guide.definition.handler
+      (args) => {
+        const question = args.question as string;
+        const useContext: boolean = args['use-context'] === 'true';
+        return ask.handler(question, useContext);
+      }
     );
 
     server.registerResource(
