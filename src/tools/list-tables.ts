@@ -30,9 +30,19 @@ const handler: ToolCallback<typeof definition.inputSchema> = async (args) => {
     }
 
     // Get table list using the database info service
+    const connection = config[database].connection as any;
+    let dbName: string;
+    
+    // For Databricks, we need to use catalog.database format
+    if (config[database].client === 'databricks') {
+      dbName = `${connection.catalog}.${connection.database}`;
+    } else {
+      dbName = connection.database || database;
+    }
+    
     const result = await getDatabaseInfo(database, {
       type: 'tables',
-      database: config[database].connection.database,
+      database: dbName,
     });
 
     if (result.success && result.data) {

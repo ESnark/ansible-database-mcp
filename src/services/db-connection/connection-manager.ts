@@ -8,8 +8,10 @@ import { EventEmitter } from 'events';
 import { createPoolConfigurator } from './pool-configurator.js';
 import timeoutManager from './timeout-manager.js';
 import { isStrictlyReadOnlySession } from '../write-permission-checker.js';
-import { DatabaseConfig } from './type.js';
+import { DatabaseConfig, isDatabricksConnection, isTraditionalDBConnection } from './type.js';
 import environment from '@/config/environment.js';
+import { DatabricksAdapter } from './adapters/databricks-adapter.js';
+import { isDatabricksReadOnlySession } from '../databricks-permission-checker.js';
 
 // Simple logging function implementations
 function logInfo(message: string): void {
@@ -113,8 +115,9 @@ class ConnectionManager extends EventEmitter {
     console.log('createPool', dbKey, {
       client: config.client,
       connection: {
-        ...config.connection,
-        password: '******'
+        ...(config.connection as any),
+        password: isTraditionalDBConnection(config.connection) ? '******' : undefined,
+        token: isDatabricksConnection(config.connection) ? '******' : undefined
       },
       pool: config.pool,
       description: config.description,
@@ -137,18 +140,28 @@ class ConnectionManager extends EventEmitter {
       // Apply timeout settings
       this._applyTimeoutSettings(poolConfig);
 
-      // Create Knex instance
-      const knexInstance = knex({
-        client: config.client,
-        connection: config.connection,
-        pool: poolConfig,
-        acquireConnectionTimeout: this.timeoutManager.getTimeout('connectionAcquisition'),
-        asyncStackTraces: process.env.NODE_ENV !== 'production',
-        debug: process.env.DB_DEBUG === 'true'
-      });
+      // Create database instance based on client type
+      let dbInstance: any;
+      
+      if (config.client === 'databricks') {
+        // Use Databricks adapter for Databricks connections
+        const databricksAdapter = new DatabricksAdapter(config);
+        await databricksAdapter.initialize();
+        dbInstance = databricksAdapter.toKnexCompatible();
+      } else {
+        // Use Knex for traditional databases
+        dbInstance = knex({
+          client: config.client,
+          connection: config.connection,
+          pool: poolConfig,
+          acquireConnectionTimeout: this.timeoutManager.getTimeout('connectionAcquisition'),
+          asyncStackTraces: process.env.NODE_ENV !== 'production',
+          debug: process.env.DB_DEBUG === 'true'
+        });
+      }
 
       // Save pool
-      this.pools.set(dbKey, knexInstance);
+      this.pools.set(dbKey, dbInstance);
 
       // Set initial pool statistics
       this.poolStats.set(dbKey, {
@@ -166,35 +179,52 @@ class ConnectionManager extends EventEmitter {
       // Test database connection and check write permissions
       try {
         // First, test basic connectivity
-        await knexInstance.raw('SELECT 1');
+        await dbInstance.raw('SELECT 1');
         logInfo(`Database connection successful: ${dbKey}`);
 
-        // Then check write permissions
-        const isReadOnly = await isStrictlyReadOnlySession(knexInstance);
-        if (!isReadOnly) {
-          // If write permission detected, immediately close pool and throw error
-          await knexInstance.destroy();
-          this.pools.delete(dbKey);
-          this.poolStats.delete(dbKey);
-          this.poolConfigs.delete(dbKey);
-          throw new Error('Write permission detected, connection rejected. Only read-only connections are allowed.');
+        // Check write permissions (skip for Databricks as it has different permission model)
+        if (config.client !== 'databricks') {
+          const isReadOnly = await isStrictlyReadOnlySession(dbInstance);
+          if (!isReadOnly) {
+            // If write permission detected, immediately close pool and throw error
+            await dbInstance.destroy();
+            this.pools.delete(dbKey);
+            this.poolStats.delete(dbKey);
+            this.poolConfigs.delete(dbKey);
+            throw new Error('Write permission detected, connection rejected. Only read-only connections are allowed.');
+          }
+        } else {
+          // For Databricks, use Databricks-specific permission checker
+          const databricksAdapter = dbInstance._adapter || dbInstance;
+          if (databricksAdapter instanceof DatabricksAdapter) {
+            const isReadOnly = await isDatabricksReadOnlySession(databricksAdapter);
+            if (!isReadOnly) {
+              await dbInstance.destroy();
+              this.pools.delete(dbKey);
+              this.poolStats.delete(dbKey);
+              this.poolConfigs.delete(dbKey);
+              throw new Error('Write permission detected on Databricks connection, connection rejected. Only read-only connections are allowed.');
+            }
+            logInfo(`Databricks connection established (read-only verified): ${dbKey}`);
+          }
         }
       } catch (error: any) {
         // Clean up pool on any failure
-        await knexInstance.destroy();
+        await dbInstance.destroy();
         this.pools.delete(dbKey);
         this.poolStats.delete(dbKey);
         this.poolConfigs.delete(dbKey);
         
         // Provide more specific error messages
+        const connection = config.connection as any;
         if (error.code === 'ECONNREFUSED') {
-          throw new Error(`Cannot connect to database '${dbKey}' at ${config.connection.host}:${config.connection.port} - Connection refused`);
+          throw new Error(`Cannot connect to database '${dbKey}' at ${connection.host}:${connection.port} - Connection refused`);
         } else if (error.code === 'ETIMEDOUT' || error.code === 'ENOTFOUND') {
-          throw new Error(`Cannot connect to database '${dbKey}' at ${config.connection.host}:${config.connection.port} - ${error.code === 'ETIMEDOUT' ? 'Connection timeout' : 'Host not found'}`);
+          throw new Error(`Cannot connect to database '${dbKey}' at ${connection.host}:${connection.port} - ${error.code === 'ETIMEDOUT' ? 'Connection timeout' : 'Host not found'}`);
         } else if (error.code === 'ER_ACCESS_DENIED_ERROR') {
-          throw new Error(`Access denied for user '${config.connection.user}' to database '${dbKey}'`);
+          throw new Error(`Access denied for user '${(config.connection as any).user}' to database '${dbKey}'`);
         } else if (error.code === 'ER_BAD_DB_ERROR') {
-          throw new Error(`Database '${config.connection.database}' does not exist on ${config.connection.host}`);
+          throw new Error(`Database '${(config.connection as any).database}' does not exist on ${connection.host}`);
         } else if (error.message?.includes('Timeout acquiring a connection')) {
           throw new Error(`Failed to acquire database connection for '${dbKey}' - This usually means the database is unreachable or credentials are incorrect`);
         }
@@ -210,15 +240,16 @@ class ConnectionManager extends EventEmitter {
       const sanitizedConfig = {
         ...config,
         connection: {
-          ...config.connection,
-          password: '******'
+          ...(config.connection as any),
+          password: isTraditionalDBConnection(config.connection) ? '******' : undefined,
+          token: isDatabricksConnection(config.connection) ? '******' : undefined
         }
       };
       this.emit('pool:created', { dbKey, config: sanitizedConfig });
 
-      logInfo(`Database connection pool created (read-only verified): ${dbKey}, ${config.client}, ${config.connection.host}:${config.connection.port}`);
+      logInfo(`Database connection pool created (read-only verified): ${dbKey}, ${config.client}, ${(config.connection as any).host}:${(config.connection as any).port || 'default'}`);
 
-      return knexInstance;
+      return dbInstance;
     } catch (error) {
       logError(`Database connection pool creation failed: ${dbKey}`, error);
       this.emit('pool:error', { dbKey, error });
@@ -572,9 +603,10 @@ class ConnectionManager extends EventEmitter {
   getDatabaseList() {
     return Object.entries(this.dbConfigs).map(([dbKey, config]) => {
       const poolStatus = this.getPoolStats(dbKey);
-      const host = config.connection.host;
-      const port = config.connection.port;
-      const user = config.connection.user;
+      const connection = config.connection as any;
+      const host = connection.host;
+      const port = connection.port;
+      const user = isTraditionalDBConnection(config.connection) ? connection.user : 'token-auth';
 
       return {
         dbKey,

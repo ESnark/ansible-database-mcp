@@ -4,6 +4,7 @@
  */
 import { MySQLQueryStrategy } from './mysql-strategy.js';
 import { PostgreSQLQueryStrategy } from './postgresql-strategy.js';
+import { DatabricksQueryStrategy } from './databricks-strategy.js';
 
 export interface QueryInfo {
   query: string;
@@ -40,6 +41,9 @@ export class QueryStrategyFactory {
       case 'pg':
       case 'postgres':
         return new PostgreSQLQueryStrategy();
+        
+      case 'databricks':
+        return new DatabricksQueryStrategy();
         
       default:
         throw new Error(`Unsupported database client: ${client}`);

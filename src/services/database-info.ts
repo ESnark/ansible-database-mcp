@@ -67,6 +67,9 @@ export async function getDatabaseInfo(dbKey: string, params: DatabaseInfoParams 
     if (clientType === 'mysql' || clientType === 'mysql2') {
       // MySQL: Knex raw query returns [rows, fields] format
       rows = Array.isArray(results) && results.length > 0 ? results[0] : results;
+    } else if (clientType === 'databricks') {
+      // Databricks: Results are in rows property directly
+      rows = results.rows || results;
     } else {
       // PostgreSQL: Results are in rows property
       rows = results.rows || results;
@@ -75,6 +78,10 @@ export async function getDatabaseInfo(dbKey: string, params: DatabaseInfoParams 
     // Extract the first column value from each row
     if (Array.isArray(rows)) {
       formattedResults = rows.map(row => {
+        // For Databricks SHOW TABLES, the table name might be in 'tableName' field
+        if (clientType === 'databricks' && type === 'tables') {
+          return row.tableName || row.table_name || row.TABLE_NAME || Object.values(row)[0] as string;
+        }
         // Get the first value from the row object
         const firstValue = Object.values(row)[0];
         return firstValue as string;

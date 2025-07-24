@@ -7,27 +7,83 @@ import yaml from 'yaml';
 import z from 'zod';
 import { Paths } from './paths.js';
 
-// Database configuration schema
-const DatabaseConfigSchema = z.object({
-  client: z.enum(['mysql2', 'pg', 'sqlite3']),
-  connection: z.object({
-    host: z.string(),
-    user: z.string(),
-    password: z.string(),
-    database: z.string(),
-    port: z.number(),
-  }),
-  pool: z.object({
-    min: z.number().min(1).default(1),
-    max: z.number().min(1).default(5),
-    idleTimeoutMillis: z.number().min(1000).default(10000),
-  }).default({
-    min: 1,
-    max: 5,
-    idleTimeoutMillis: 10000,
-  }),
-  description: z.optional(z.string()),
+// Connection schemas for different database types
+const TraditionalDBConnectionSchema = z.object({
+  host: z.string(),
+  user: z.string(),
+  password: z.string(),
+  database: z.string(),
+  port: z.number(),
 });
+
+const DatabricksConnectionSchema = z.object({
+  host: z.string(),
+  port: z.number().default(443),
+  path: z.string(),
+  token: z.string(),
+  catalog: z.string().optional(),
+  database: z.string().optional(),  // In Databricks, this represents the schema
+});
+
+// Database configuration schema with discriminated union
+const DatabaseConfigSchema = z.discriminatedUnion('client', [
+  z.object({
+    client: z.literal('mysql2'),
+    connection: TraditionalDBConnectionSchema,
+    pool: z.object({
+      min: z.number().min(1).default(1),
+      max: z.number().min(1).default(5),
+      idleTimeoutMillis: z.number().min(1000).default(10000),
+    }).default({
+      min: 1,
+      max: 5,
+      idleTimeoutMillis: 10000,
+    }),
+    description: z.optional(z.string()),
+  }),
+  z.object({
+    client: z.literal('pg'),
+    connection: TraditionalDBConnectionSchema,
+    pool: z.object({
+      min: z.number().min(1).default(1),
+      max: z.number().min(1).default(5),
+      idleTimeoutMillis: z.number().min(1000).default(10000),
+    }).default({
+      min: 1,
+      max: 5,
+      idleTimeoutMillis: 10000,
+    }),
+    description: z.optional(z.string()),
+  }),
+  z.object({
+    client: z.literal('sqlite3'),
+    connection: TraditionalDBConnectionSchema,
+    pool: z.object({
+      min: z.number().min(1).default(1),
+      max: z.number().min(1).default(5),
+      idleTimeoutMillis: z.number().min(1000).default(10000),
+    }).default({
+      min: 1,
+      max: 5,
+      idleTimeoutMillis: 10000,
+    }),
+    description: z.optional(z.string()),
+  }),
+  z.object({
+    client: z.literal('databricks'),
+    connection: DatabricksConnectionSchema,
+    pool: z.object({
+      min: z.number().min(1).default(1),
+      max: z.number().min(1).default(5),
+      idleTimeoutMillis: z.number().min(1000).default(10000),
+    }).default({
+      min: 1,
+      max: 5,
+      idleTimeoutMillis: 10000,
+    }),
+    description: z.optional(z.string()),
+  }),
+]);
 
 // Complete environment configuration schema
 const EnvironmentConfigSchema = z.record(z.string(), DatabaseConfigSchema);
@@ -91,7 +147,16 @@ class Environment {
           `    port: 3306\n` +
           `    user: readonly_user\n` +
           `    password: your_password\n` +
-          `    database: your_database`
+          `    database: your_database\n` +
+          `\n` +
+          `databricks_db:\n` +
+          `  client: databricks\n` +
+          `  connection:\n` +
+          `    host: xxx.cloud.databricks.com\n` +
+          `    path: /sql/1.0/warehouses/your-warehouse-id\n` +
+          `    token: dapi...\n` +
+          `    catalog: main\n` +
+          `    schema: default`
         );
       }
 

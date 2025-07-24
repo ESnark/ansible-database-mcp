@@ -32,7 +32,8 @@ const handler: ToolCallback<typeof definition.inputSchema> = async (args) => {
     }
 
     const dbConfig = config[database];
-    const dbName = dbConfig.connection.database;
+    const connection = dbConfig.connection as any;
+    const dbName = connection.database || connection.catalog || database;
 
     // Use the getTableInfo service with strategy pattern
     const result = await getTableInfo(database, {

@@ -4,7 +4,7 @@ Safe & Fast human language queries with write permission protection
 ## Key Features
 
 - **Write Permission Check**: Automatically checks write permissions on database connection and only allows read-only connections
-- **Multi-Database Support**: Secure read-only access to MySQL and PostgreSQL databases
+- **Multi-Database Support**: Secure read-only access to MySQL, PostgreSQL, and Databricks databases
 - **MCP Protocol**: AI tool integration through Model Context Protocol
 - **Connection Pooling**: Efficient database connection management
 
@@ -50,6 +50,22 @@ database_2:
     max: 5
     idleTimeoutMillis: 10000
   description: PostgreSQL database description
+
+# Databricks database configuration
+databricks_warehouse:
+  client: databricks
+  connection:
+    host: your-workspace.cloud.databricks.com
+    port: 443
+    path: /sql/1.0/warehouses/your-warehouse-id
+    token: super_secret_token
+    catalog: main
+    database: default  # This represents the schema in Databricks
+  pool:
+    min: 1
+    max: 5
+    idleTimeoutMillis: 30000
+  description: Databricks SQL Warehouse connection
 ```
 
 
@@ -164,6 +180,6 @@ pnpm start
 
 ## Support
 
-- **Multi-Database**: MySQL 8.0+ and PostgreSQL 12+
+- **Multi-Database**: MySQL 8.0+, PostgreSQL 12+, and Databricks SQL Warehouses
 - **Architectures**: AMD64 and ARM64
 - **Node.js**: 22 or higher

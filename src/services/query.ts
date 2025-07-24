@@ -58,7 +58,19 @@ export async function executeQuery(dbKey: string, params: QueryParams): Promise<
     logQuery(query, params, executionTime, true);
 
     // Process Knex raw query results
-    const [rows] = results;
+    let rows;
+    const clientType = connection?.client?.config?.client || '';
+    
+    if (clientType === 'databricks') {
+      // Databricks returns results in rows property
+      rows = results.rows || results;
+    } else if (Array.isArray(results)) {
+      // MySQL and others return array format [rows, fields]
+      rows = results[0];
+    } else {
+      // PostgreSQL and others
+      rows = results.rows || results;
+    }
 
     return {
       success: true,
