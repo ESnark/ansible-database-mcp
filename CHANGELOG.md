@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.2.0
+
+### Minor Changes
+
+- 1b0872b: Add databricks support
+
 ## 1.1.0
 
 ### Minor Changes
