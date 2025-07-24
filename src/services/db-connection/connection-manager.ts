@@ -110,7 +110,16 @@ class ConnectionManager extends EventEmitter {
    * Create and register database connection pool
    */
   async createPool(dbKey: string, config: DatabaseConfig): Promise<Knex> {
-    console.log('createPool', dbKey, config);
+    console.log('createPool', dbKey, {
+      client: config.client,
+      connection: {
+        ...config.connection,
+        password: '******'
+      },
+      pool: config.pool,
+      description: config.description,
+      poolStatus: this.getPoolStats(dbKey)
+    });
     // Close existing pool if present
     if (this.pools.has(dbKey)) {
       logInfo(`Reconfiguring existing database connection pool: ${dbKey}`);
@@ -154,11 +163,13 @@ class ConnectionManager extends EventEmitter {
         lastError: null
       });
 
-      // Write permission check - create test connection to verify permissions
+      // Test database connection and check write permissions
       try {
-        // await knexInstance.raw('SELECT 1');
-        // const rawConnection = knexInstance.client.acquireRawConnection();
+        // First, test basic connectivity
+        await knexInstance.raw('SELECT 1');
+        logInfo(`Database connection successful: ${dbKey}`);
 
+        // Then check write permissions
         const isReadOnly = await isStrictlyReadOnlySession(knexInstance);
         if (!isReadOnly) {
           // If write permission detected, immediately close pool and throw error
@@ -168,17 +179,28 @@ class ConnectionManager extends EventEmitter {
           this.poolConfigs.delete(dbKey);
           throw new Error('Write permission detected, connection rejected. Only read-only connections are allowed.');
         }
-
-        // Release test connection
-        // console.log('releaseConnection', await rawConnection);
-        // (knexInstance as any).client.releaseConnection(await rawConnection);
-      } catch (permissionError: any) {
-        // Clean up pool on write permission check failure
+      } catch (error: any) {
+        // Clean up pool on any failure
         await knexInstance.destroy();
         this.pools.delete(dbKey);
         this.poolStats.delete(dbKey);
         this.poolConfigs.delete(dbKey);
-        throw permissionError;
+        
+        // Provide more specific error messages
+        if (error.code === 'ECONNREFUSED') {
+          throw new Error(`Cannot connect to database '${dbKey}' at ${config.connection.host}:${config.connection.port} - Connection refused`);
+        } else if (error.code === 'ETIMEDOUT' || error.code === 'ENOTFOUND') {
+          throw new Error(`Cannot connect to database '${dbKey}' at ${config.connection.host}:${config.connection.port} - ${error.code === 'ETIMEDOUT' ? 'Connection timeout' : 'Host not found'}`);
+        } else if (error.code === 'ER_ACCESS_DENIED_ERROR') {
+          throw new Error(`Access denied for user '${config.connection.user}' to database '${dbKey}'`);
+        } else if (error.code === 'ER_BAD_DB_ERROR') {
+          throw new Error(`Database '${config.connection.database}' does not exist on ${config.connection.host}`);
+        } else if (error.message?.includes('Timeout acquiring a connection')) {
+          throw new Error(`Failed to acquire database connection for '${dbKey}' - This usually means the database is unreachable or credentials are incorrect`);
+        }
+        
+        // Re-throw original error if not handled above
+        throw error;
       }
 
       // Start monitoring

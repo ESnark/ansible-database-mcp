@@ -3,15 +3,7 @@
  */
 import { getConnection, releaseConnection } from './database.js';
 import type { APIResponse } from '../types/index.js';
-
-// Database query
-const SHOW_DATABASES_QUERY = 'SHOW DATABASES';
-
-// Schema query (In MySQL, database and schema are the same)
-const SHOW_SCHEMAS_QUERY = 'SHOW DATABASES';
-
-// Table query
-const SHOW_TABLES_QUERY = 'SHOW TABLES';
+import { QueryStrategyFactory, getDatabaseClient } from './db-query-strategies/index.js';
 
 interface DatabaseInfoParams {
   type?: 'databases' | 'schemas' | 'tables';
@@ -31,53 +23,62 @@ interface DatabaseInfoResult {
  * Database information retrieval function
  */
 export async function getDatabaseInfo(dbKey: string, params: DatabaseInfoParams = {}): Promise<APIResponse<DatabaseInfoResult>> {
-  const { type = 'databases', database, schema: _schema } = params;
+  const { type = 'databases', database, schema } = params;
 
   let connection: any = null;
-  let query = '';
 
   try {
-    // Select query based on type
+    // Get database connection (Knex pool)
+    connection = getConnection(dbKey);
+    
+    // Determine database client type and get appropriate strategy
+    const clientType = getDatabaseClient(connection);
+    const queryStrategy = QueryStrategyFactory.create(clientType);
+    
+    // Get query info based on type using strategy pattern
+    let queryInfo;
     switch (type.toLowerCase()) {
       case 'databases':
-        query = SHOW_DATABASES_QUERY;
+        queryInfo = queryStrategy.showDatabases();
         break;
       case 'schemas':
-        query = SHOW_SCHEMAS_QUERY;
+        queryInfo = queryStrategy.showDatabases(); // In MySQL, databases and schemas are the same
         break;
       case 'tables':
-        if (!database) {
-          throw new Error('Database name is required for table query.');
+        // For PostgreSQL, use schema parameter; for MySQL, use database parameter
+        const targetSchema = clientType === 'pg' ? (schema || 'public') : database;
+        if (!targetSchema) {
+          throw new Error('Database/schema name is required for table query.');
         }
-        query = SHOW_TABLES_QUERY;
+        queryInfo = queryStrategy.showTables(targetSchema);
         break;
       default:
         throw new Error(`Unsupported information type: ${type}`);
     }
 
-    // Get database connection (Knex pool)
-    connection = getConnection(dbKey);
-
-    // Select database first when querying tables
-    if (type.toLowerCase() === 'tables' && database) {
-      await connection.raw(`USE ??`, [database]);
-    }
-
     // Execute query using Knex
-    const results = await connection.raw(query);
+    const results = await connection.raw(queryInfo.query, queryInfo.params);
 
     // Process results
     let formattedResults: string[] = [];
 
-    // Knex raw query returns [rows, fields] format (for MySQL)
-    const rows = Array.isArray(results) && results.length > 0 ? results[0] : results;
+    // Handle different result formats based on database type
+    let rows;
+    if (clientType === 'mysql' || clientType === 'mysql2') {
+      // MySQL: Knex raw query returns [rows, fields] format
+      rows = Array.isArray(results) && results.length > 0 ? results[0] : results;
+    } else {
+      // PostgreSQL: Results are in rows property
+      rows = results.rows || results;
+    }
 
-    if (type.toLowerCase() === 'databases' || type.toLowerCase() === 'schemas') {
-      // Database/schema list
-      formattedResults = Array.isArray(rows) ? rows.map(row => Object.values(row)[0] as string) : [];
-    } else if (type.toLowerCase() === 'tables') {
-      // Table list
-      formattedResults = Array.isArray(rows) ? rows.map(row => Object.values(row)[0] as string) : [];
+    // Extract the first column value from each row
+    if (Array.isArray(rows)) {
+      formattedResults = rows.map(row => {
+        // Get the first value from the row object
+        const firstValue = Object.values(row)[0];
+        return firstValue as string;
+      });
     }
 
     return {

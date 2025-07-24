@@ -17,19 +17,8 @@ interface BasePoolConfig {
   debugLogging?: boolean;
 }
 
-interface MySQLPoolConfig extends BasePoolConfig {
-  connectionLimit?: number;
-  queueLimit?: number;
-  waitForConnections?: boolean;
-  enableKeepAlive?: boolean;
-  keepAliveInitialDelay?: number;
-}
-
-interface PostgreSQLPoolConfig extends BasePoolConfig {
-  connectionTimeoutMillis?: number;
-  statementTimeout?: number;
-  ssl?: any;
-}
+// Database-specific pool configurations can be added here if needed in the future
+// For now, all databases use the same base pool configuration
 
 interface KnexPoolConfig {
   min: number;
@@ -71,11 +60,11 @@ export class BasePoolConfigurator {
   protected debugLogging: boolean;
 
   constructor(config: BasePoolConfig = {}) {
-    this.minConnections = config.minConnections ?? 2;
+    this.minConnections = config.minConnections ?? 0;  // Start with 0 to avoid initial connection storm
     this.maxConnections = config.maxConnections ?? 10;
     this.idleTimeoutMillis = config.idleTimeoutMillis ?? 30000;
-    this.acquireTimeoutMillis = config.acquireTimeoutMillis ?? 30000;
-    this.createTimeoutMillis = config.createTimeoutMillis ?? 30000;
+    this.acquireTimeoutMillis = config.acquireTimeoutMillis ?? 10000;
+    this.createTimeoutMillis = config.createTimeoutMillis ?? 10000;
     this.createRetryIntervalMillis = config.createRetryIntervalMillis ?? 200;
     this.propagateCreateError = config.propagateCreateError ?? true;
     this.afterCreate = config.afterCreate;
@@ -122,88 +111,18 @@ export class BasePoolConfigurator {
 }
 
 /**
- * MySQL database connection pool configuration
- */
-export class MySQLPoolConfigurator extends BasePoolConfigurator {
-  private connectionLimit: number;
-  private queueLimit: number;
-  private waitForConnections: boolean;
-  private enableKeepAlive: boolean;
-  private keepAliveInitialDelay: number;
-
-  constructor(config: MySQLPoolConfig = {}) {
-    super(config);
-    
-    // MySQL-specific configuration
-    this.connectionLimit = config.connectionLimit || this.maxConnections;
-    this.queueLimit = config.queueLimit || 0; // 0 means unlimited
-    this.waitForConnections = config.waitForConnections !== undefined ? 
-                            config.waitForConnections : true;
-    this.enableKeepAlive = config.enableKeepAlive !== undefined ? 
-                         config.enableKeepAlive : true;
-    this.keepAliveInitialDelay = config.keepAliveInitialDelay || 10000;
-  }
-
-  /**
-   * Create Knex pool configuration object for MySQL
-   */
-  override getKnexPoolConfig(): KnexPoolConfig {
-    return {
-      ...super.getKnexPoolConfig(),
-      connectionLimit: this.connectionLimit,
-      queueLimit: this.queueLimit,
-      waitForConnections: this.waitForConnections,
-      enableKeepAlive: this.enableKeepAlive,
-      keepAliveInitialDelay: this.keepAliveInitialDelay
-    };
-  }
-}
-
-/**
- * PostgreSQL database connection pool configuration
- */
-export class PostgreSQLPoolConfigurator extends BasePoolConfigurator {
-  private connectionTimeoutMillis: number;
-  private statementTimeout?: number | undefined;
-  private ssl?: any;
-
-  constructor(config: PostgreSQLPoolConfig = {}) {
-    super(config);
-    
-    // PostgreSQL-specific configuration
-    this.connectionTimeoutMillis = config.connectionTimeoutMillis ?? 30000;
-    this.statementTimeout = config.statementTimeout;
-    this.ssl = config.ssl;
-  }
-
-  /**
-   * Create Knex pool configuration object for PostgreSQL
-   */
-  override getKnexPoolConfig(): KnexPoolConfig {
-    const baseConfig = super.getKnexPoolConfig();
-    
-    // Add PostgreSQL-specific configuration
-    const pgConfig: KnexPoolConfig = {
-      ...baseConfig,
-      connectionTimeoutMillis: this.connectionTimeoutMillis
-    };
-    
-    if (this.statementTimeout !== undefined) {
-      pgConfig.statementTimeout = this.statementTimeout;
-    }
-    
-    if (this.ssl !== undefined) {
-      pgConfig.ssl = this.ssl;
-    }
-    
-    return pgConfig;
-  }
-}
-
-/**
  * Create pool configuration suitable for database type
  */
-export function createPoolConfigurator(_dbType: string, config: BasePoolConfig = {}): BasePoolConfigurator {
-  // Simply return default configuration (MySQL, PostgreSQL specific features to be added later)
-  return new BasePoolConfigurator(config);
+export function createPoolConfigurator(dbType: string, config: any = {}): BasePoolConfigurator {
+  // Convert env.yml pool config format to BasePoolConfig format
+  const poolConfig: BasePoolConfig = {
+    minConnections: config.min,
+    maxConnections: config.max,
+    idleTimeoutMillis: config.idleTimeoutMillis,
+    acquireTimeoutMillis: config.acquireTimeoutMillis,
+    createTimeoutMillis: config.createTimeoutMillis,
+    ...config
+  };
+
+  return new BasePoolConfigurator(poolConfig);
 } 

@@ -1,7 +1,7 @@
 import { ToolDefinition } from "../types/modelcontextprotocol.js";
 import { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
-import { getConnection, releaseConnection } from "@/services/database.js";
+import { getTableInfo } from "@/services/table-info.js";
 import environment from "@/config/environment.js";
 
 const definition: ToolDefinition = {
@@ -17,8 +17,6 @@ const definition: ToolDefinition = {
 const handler: ToolCallback<typeof definition.inputSchema> = async (args) => {
   const { database, table, info_type = 'all' } = args as z.infer<z.ZodObject<typeof definition.inputSchema>>;
 
-  let connection: any = null;
-
   try {
     // Check if database exists in configuration
     const config = environment.getConfig();
@@ -33,75 +31,54 @@ const handler: ToolCallback<typeof definition.inputSchema> = async (args) => {
       };
     }
 
-    // Get database connection
-    connection = getConnection(database);
-    const dbName = config[database].connection.database;
+    const dbConfig = config[database];
+    const dbName = dbConfig.connection.database;
 
-    // Result object
-    const tableInfo: any = {
-      success: true,
-      database: database,
-      table: table,
-    };
+    // Use the getTableInfo service with strategy pattern
+    const result = await getTableInfo(database, {
+      table,
+      database: dbName,
+      info_type
+    });
 
-    // Get column information
-    if (info_type === 'columns' || info_type === 'all') {
-      try {
-        const [columns] = await connection.raw('SHOW COLUMNS FROM ??', [table]);
-        tableInfo.columns = columns;
-      } catch (error: any) {
-        tableInfo.columns = [];
-        tableInfo.columnsError = error.message;
-      }
+    if (result.success && result.data) {
+      // Format the successful result
+      const formattedResult = {
+        success: true,
+        database: database,
+        table: table,
+        dbName: result.data.database || result.data.schema,
+        columns: result.data.info?.columns || [],
+        indexes: result.data.info?.indexes || [],
+        constraints: result.data.info?.constraints || [],
+        message: result.data.message,
+      };
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(formattedResult, null, 2),
+          },
+        ],
+      };
+    } else {
+      // Handle error case
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              database: database,
+              table: table,
+              error: result.error || 'Unknown error',
+              message: result.message || 'Failed to get table schema information',
+            }, null, 2),
+          },
+        ],
+      };
     }
-
-    // Get index information
-    if (info_type === 'indexes' || info_type === 'all') {
-      try {
-        const [indexes] = await connection.raw('SHOW INDEXES FROM ??', [table]);
-        tableInfo.indexes = indexes;
-      } catch (error: any) {
-        tableInfo.indexes = [];
-        tableInfo.indexesError = error.message;
-      }
-    }
-
-    // Get constraint information
-    if (info_type === 'constraints' || info_type === 'all') {
-      try {
-        const [constraints] = await connection.raw(`
-          SELECT
-            tc.CONSTRAINT_NAME,
-            tc.CONSTRAINT_TYPE,
-            kcu.COLUMN_NAME,
-            kcu.REFERENCED_TABLE_NAME,
-            kcu.REFERENCED_COLUMN_NAME
-          FROM
-            information_schema.TABLE_CONSTRAINTS tc
-          JOIN
-            information_schema.KEY_COLUMN_USAGE kcu
-          ON
-            tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-            AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
-            AND tc.TABLE_NAME = kcu.TABLE_NAME
-          WHERE
-            tc.TABLE_SCHEMA = ? AND tc.TABLE_NAME = ?
-        `, [dbName, table]);
-        tableInfo.constraints = constraints;
-      } catch (error: any) {
-        tableInfo.constraints = [];
-        tableInfo.constraintsError = error.message;
-      }
-    }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(tableInfo, null, 2),
-        },
-      ],
-    };
   } catch (error: any) {
     // Handle unexpected errors
     return {
@@ -118,12 +95,12 @@ const handler: ToolCallback<typeof definition.inputSchema> = async (args) => {
         },
       ],
     };
-  } finally {
-    // Release connection
-    if (connection) {
-      releaseConnection(connection);
-    }
   }
 };
 
-export { definition, handler };
+const getTool = {
+  definition,
+  handler,
+};
+
+export default getTool;

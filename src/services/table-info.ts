@@ -1,33 +1,9 @@
 /**
  * Table information retrieval service
  */
-// import { getConnection, releaseConnection } from './database';
-// import config from '../config';
-// import type { APIResponse } from '../types';
-
-// Column information query
-const SHOW_COLUMNS_QUERY = 'SHOW COLUMNS FROM ??';
-
-// Index information query
-const SHOW_INDEXES_QUERY = 'SHOW INDEXES FROM ??';
-
-// Constraint query (MySQL doesn't have direct constraint query, so using information_schema)
-const SHOW_CONSTRAINTS_QUERY = `
-  SELECT
-    tc.CONSTRAINT_NAME,
-    tc.CONSTRAINT_TYPE,
-    kcu.COLUMN_NAME,
-    kcu.REFERENCED_TABLE_NAME,
-    kcu.REFERENCED_COLUMN_NAME
-  FROM
-    information_schema.TABLE_CONSTRAINTS tc
-  JOIN
-    information_schema.KEY_COLUMN_USAGE kcu
-  ON
-    tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-  WHERE
-    tc.TABLE_SCHEMA = ? AND tc.TABLE_NAME = ?
-`;
+import { getConnection, releaseConnection } from './database.js';
+import type { APIResponse } from '../types/index.js';
+import { QueryStrategyFactory, getDatabaseClient } from './db-query-strategies/index.js';
 
 interface TableInfoParams {
   table: string;
@@ -45,7 +21,8 @@ interface TableInfo {
 interface TableInfoResult {
   success: boolean;
   table: string;
-  database: string;
+  database?: string;
+  schema?: string;
   info?: TableInfo;
   error?: string;
   message: string;
@@ -54,84 +31,102 @@ interface TableInfoResult {
 /**
  * Table information retrieval function
  */
-// export async function getTableInfo(params: TableInfoParams): Promise<APIResponse<TableInfoResult>> {
-//   const { table, database, schema, info_type = 'all' } = params;
+export async function getTableInfo(dbKey: string, params: TableInfoParams): Promise<APIResponse<TableInfoResult>> {
+  const { table, database, schema, info_type = 'all' } = params;
 
-//   if (!table) {
-//     return {
-//       success: false,
-//       error: 'Table name is required.',
-//       message: 'Please provide table name for table information retrieval.'
-//     };
-//   }
+  if (!table) {
+    return {
+      success: false,
+      error: 'Table name is required.',
+      message: 'Please provide table name for table information retrieval.'
+    };
+  }
 
-//   let connection: any = null;
+  let connection: any = null;
 
-//   try {
-//     // Get database connection
-//     connection = getConnection(database);
+  try {
+    // Get database connection (Knex pool)
+    connection = getConnection(dbKey);
+    
+    // Determine database client type and get appropriate strategy
+    const clientType = getDatabaseClient(connection);
+    const queryStrategy = QueryStrategyFactory.create(clientType);
+    
+    // For PostgreSQL, use schema parameter; for MySQL, use database parameter
+    const targetSchema = clientType === 'pg' ? (schema || 'public') : database;
+    
+    if (!targetSchema) {
+      return {
+        success: false,
+        error: 'Database/schema name is required.',
+        message: 'Please provide database name (MySQL) or schema name (PostgreSQL) for table information retrieval.'
+      };
+    }
 
-//     // Initialize result object
-//     const info: TableInfo = {};
+    // Initialize result object
+    const info: TableInfo = {};
 
-//     // Query column information
-//     if (info_type === 'columns' || info_type === 'all') {
-//       const columnsResults: any[] = await new Promise((resolve, reject) => {
-//         connection.query(SHOW_COLUMNS_QUERY, [table], (err: any, results: any[]) => {
-//           if (err) reject(err);
-//           else resolve(results);
-//         });
-//       });
+    // Query column information
+    if (info_type === 'columns' || info_type === 'all') {
+      const queryInfo = queryStrategy.showColumns(targetSchema, table);
+      const results = await connection.raw(queryInfo.query, queryInfo.params);
+      
+      // Handle different result formats
+      if (clientType === 'mysql' || clientType === 'mysql2') {
+        info.columns = Array.isArray(results) && results.length > 0 ? results[0] : results;
+      } else {
+        info.columns = results.rows || results;
+      }
+    }
 
-//       info.columns = columnsResults;
-//     }
+    // Query index information
+    if (info_type === 'indexes' || info_type === 'all') {
+      const queryInfo = queryStrategy.showIndexes(targetSchema, table);
+      const results = await connection.raw(queryInfo.query, queryInfo.params);
+      
+      // Handle different result formats
+      if (clientType === 'mysql' || clientType === 'mysql2') {
+        info.indexes = Array.isArray(results) && results.length > 0 ? results[0] : results;
+      } else {
+        info.indexes = results.rows || results;
+      }
+    }
 
-//     // Query index information
-//     if (info_type === 'indexes' || info_type === 'all') {
-//       const indexesResults: any[] = await new Promise((resolve, reject) => {
-//         connection.query(SHOW_INDEXES_QUERY, [table], (err: any, results: any[]) => {
-//           if (err) reject(err);
-//           else resolve(results);
-//         });
-//       });
+    // Query constraint information
+    if (info_type === 'constraints' || info_type === 'all') {
+      const queryInfo = queryStrategy.showConstraints(targetSchema, table);
+      const results = await connection.raw(queryInfo.query, queryInfo.params);
+      
+      // Handle different result formats
+      if (clientType === 'mysql' || clientType === 'mysql2') {
+        info.constraints = Array.isArray(results) && results.length > 0 ? results[0] : results;
+      } else {
+        info.constraints = results.rows || results;
+      }
+    }
 
-//       info.indexes = indexesResults;
-//     }
+    return {
+      success: true,
+      data: {
+        success: true,
+        table,
+        ...(clientType === 'pg' ? { schema: targetSchema } : { database: targetSchema }),
+        info,
+        message: `Table information successfully retrieved.`
+      }
+    };
+  } catch (error: any) {
+    console.error('Table information retrieval error:', error);
 
-//     // Query constraint information
-//     if (info_type === 'constraints' || info_type === 'all') {
-//       const constraintsResults: any[] = await new Promise((resolve, reject) => {
-//         connection.query(SHOW_CONSTRAINTS_QUERY, [database, table], (err: any, results: any[]) => {
-//           if (err) reject(err);
-//           else resolve(results);
-//         });
-//       });
-
-//       info.constraints = constraintsResults;
-//     }
-
-//     return {
-//       success: true,
-//       data: {
-//         success: true,
-//         table,
-//         database,
-//         info,
-//         message: `Table information successfully retrieved.`
-//       }
-//     };
-//   } catch (error: any) {
-//     console.error('Table information retrieval error:', error);
-
-//     return {
-//       success: false,
-//       error: error.message,
-//       message: 'An error occurred while retrieving table information.'
-//     };
-//   } finally {
-//     // Return connection
-//     if (connection) {
-//       releaseConnection(connection);
-//     }
-//   }
-// }
+    return {
+      success: false,
+      error: error.message,
+      message: 'An error occurred while retrieving table information.'
+    };
+  } finally {
+    // Return connection
+    if (connection) {
+      releaseConnection(connection);
+    }
+  }
+}
