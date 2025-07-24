@@ -1,11 +1,11 @@
 import { GetPromptResult } from "@modelcontextprotocol/sdk/types.js";
 import { PromptDefinition } from "../types/modelcontextprotocol.js";
 import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { z } from 'zod';
+import { Paths } from '../config/paths.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+let guideContent: string | undefined;
+let contextContent: string | undefined;
 
 const definition: PromptDefinition = {
   name: 'ask',
@@ -16,19 +16,36 @@ const definition: PromptDefinition = {
   },
 };
 
+
+const getGuideContent = async () => {
+  if (guideContent) {
+    return guideContent;
+  }
+
+  const guidePath = Paths.getGuidePath();
+  guideContent = readFileSync(guidePath, 'utf-8');
+  return guideContent;
+};
+
+
+const getContextContent = async () => {
+
+  if (contextContent) {
+    return contextContent;
+  }
+
+  const contextPath = Paths.getContextPath();
+  contextContent = readFileSync(contextPath, 'utf-8');
+  return contextContent;
+};
+
 const handler: (question: string, useContext?: boolean) => Promise<GetPromptResult> = async (question: string, useContext?: boolean) => {
-  const guidePath = process.env.NODE_ENV === 'development'
-    ? join(__dirname, '../assets/guide.md')
-    : join(__dirname, '../../assets/guide.md');
-  const guideContent = readFileSync(guidePath, 'utf-8');
+  const guideContent = await getGuideContent();
   
   let response = `${guideContent}\n\nQuestion: ${question}`;
 
   if (useContext) {
-    const contextPath = process.env.NODE_ENV === 'development'
-      ? join(__dirname, '../assets/context.md')
-      : join(__dirname, '../../assets/context.md');
-    const contextContent = readFileSync(contextPath, 'utf-8');
+    const contextContent = await getContextContent();
     response += `\n\nContext: ${contextContent}`;
   }
 

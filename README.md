@@ -8,20 +8,15 @@ Safe & Fast human language queries with write permission protection
 - **MCP Protocol**: AI tool integration through Model Context Protocol
 - **Connection Pooling**: Efficient database connection management
 
-## Test Environment Setup
-
-### Prerequisites
+## Prerequisites
 
 - Node.js 22 or higher
-- Docker and Docker Compose
-- pnpm
+- Docker
+- pnpm (for development)
 
+## Configuration
 
-## Environment Configuration
-
-### Environment Variable File Structure
-
-This project manages environment variables through yaml files.
+Create an `env.yml` file with your database connections:
 
 ```yaml
 # env.yml example
@@ -57,13 +52,6 @@ database_2:
   description: PostgreSQL database description
 ```
 
-### Environment Variable File Location
-
-- Default location: `env.yml` in the project root directory
-- Use different config file: Specify with `DATABASE_CONFIG_FILE` environment variable
-  ```bash
-  DATABASE_CONFIG_FILE=production.yml pnpm start
-  ```
 
 ## Security Features
 
@@ -120,96 +108,62 @@ This MCP server implements the following security mechanisms to ensure database 
    - Helps AI create effective database queries
 
 
-## Docker Deployment
+## Usage
 
-The MCP server can be deployed as a Docker image with support for both AMD64 and ARM64 architectures. The configuration file (`env.yml`) is mounted at runtime.
+### Option 1: Using npx (Recommended)
 
 ```bash
-# Build Docker image
-docker build -t ansible-database-mcp .
+# Run with default configuration
+npx ansible-database-mcp
 
-# Run Docker container
+# Run with custom config file
+npx ansible-database-mcp --config ./my-env.yml
+
+# Run with custom config and context
+npx ansible-database-mcp --config ./my-env.yml --context ./my-context.md
+
+# Run on different port
+npx ansible-database-mcp --port 3001
+
+# Show help
+npx ansible-database-mcp --help
+```
+
+### Option 2: Using Docker
+
+```bash
+# Create config directory
+mkdir config
+cp env.yml config/
+cp context.md config/  # Optional
+
+# Run with directory mount
 docker run -d \
-  -v ./env.yml:/config/env.yml:ro \
+  -v ./config/:/config/:ro \
   -p 3000:3000 \
-  ansible-database-mcp
+  --name ansible-mcp \
+  ansible-database-mcp:latest
 ```
 
-You can use `DATABASE_CONFIG_FILE` environment variable to use a different config file:
+### Option 3: Local Development
 
 ```bash
-docker run \
-  -v ./env.yml:/config/custom-config.yml:ro \
-  -p 3000:3000 \
-  -e DATABASE_CONFIG_FILE=custom-config.yml \
-  ansible-database-mcp
+# Install dependencies
+pnpm install
+
+# Run development server
+pnpm dev
+
+# Run with custom config
+CONFIG_FILE=./custom-env.yml pnpm dev
+
+# Build for production
+pnpm build
+pnpm start
 ```
 
+## Support
 
-## Local Test Environment Setup
-
-### Method 1: Integrated Environment using Docker Compose
-
-Using Docker Compose, you can run both MySQL database and MCP server together.
-
-1. **Create configuration file**
-   ```bash
-   cp env.example.yml env.yml
-   ```
-
-2. **Run Docker Compose**
-   ```bash
-   docker-compose up -d
-   ```
-   This command automatically sets up:
-   - MySQL 8.0 database (port 3306)
-   - MCP server container (port 3000)
-   - Read-only and write-permission users
-   - Sample database and tables
-
-3. **Shutdown environment**
-   ```bash
-   docker-compose down -v  # Also removes volumes
-   ```
-
-### Method 2: Standalone Local Development Environment
-
-If you already have MySQL database installed or are using a remote database:
-
-1. **Install dependencies**
-   ```bash
-   pnpm install
-   ```
-
-2. **Configure environment**
-   ```bash
-   cp env.example.yml env.yml
-   ```
-   Edit `env.yml` with your actual database connection info:
-   - host: Database host address
-   - user: User with read-only permissions
-   - password: User password
-
-3. **Run development server**
-   ```bash
-   pnpm dev
-   ```
-   Development server runs at http://localhost:3000
-
-4. **Run tests**
-   ```bash
-   # Run all tests
-   pnpm test
-   
-   # Run tests in watch mode
-   pnpm test:watch
-   
-   # Run tests with coverage
-   pnpm test:coverage
-   ```
-
-## Requirements
-
-- Node.js 22 or higher
-- pnpm package manager
-- MySQL 8.0+ or PostgreSQL 12+ (target database)
+- **Multi-Database**: MySQL 8.0+ and PostgreSQL 12+
+- **Architectures**: AMD64 and ARM64
+- **Node.js**: 22 or higher

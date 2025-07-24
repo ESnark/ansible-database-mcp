@@ -1,10 +1,6 @@
 import { ResourceDefinition } from "../types/modelcontextprotocol.js";
 import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { Paths } from '../config/paths.js';
 
 export const definition: ResourceDefinition = {
   name: 'database-context',
@@ -13,9 +9,7 @@ export const definition: ResourceDefinition = {
   description: 'Contextual information about databases and tables',
   mimeType: 'text/markdown',
   handler: async (uri, extra) => {
-    const contextPath = process.env.NODE_ENV === 'development'
-      ? join(__dirname, './context.md')
-      : join(__dirname, './assets/context.md');
+    const contextPath = Paths.getContextPath();
     const contextContent = readFileSync(contextPath, 'utf-8');
     
     return {

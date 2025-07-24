@@ -3,7 +3,7 @@ import { cpSync } from 'fs';
 import { join } from 'path';
 
 export default defineConfig({
-  entry: ['src/main.ts'],
+  entry: ['src/main.ts', 'src/cli.ts'],
   format: ['esm'],
   target: 'node22',
   outDir: 'dist',

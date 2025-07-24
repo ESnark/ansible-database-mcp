@@ -3,19 +3,9 @@
  * Provides globally accessible configuration object by reading env.yml file
  */
 import fs from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import yaml from 'yaml';
 import z from 'zod';
-
-// Current file directory path
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Project root path (two levels up from src/config)
-const PROJECT_ROOT = process.env.NODE_ENV === 'development'
-  ? path.resolve(__dirname, '../..')
-  : path.resolve(__dirname, '..');
+import { Paths } from './paths.js';
 
 // Database configuration schema
 const DatabaseConfigSchema = z.object({
@@ -54,9 +44,8 @@ class Environment {
   private isLoaded = false;
 
   constructor() {
-    // Configuration file path can be specified via environment variable, default is env.yml
-    const configFileName = process.env.DATABASE_CONFIG_FILE || 'env.yml';
-    this.configFilePath = path.join(PROJECT_ROOT, configFileName);
+    // Use centralized path management
+    this.configFilePath = Paths.getConfigPath();
   }
 
   /**
@@ -80,8 +69,8 @@ class Environment {
           `\nSolution:\n` +
           `1. Copy env.example.yml file to env.yml:\n` +
           `   cp env.example.yml env.yml\n` +
-          `\n2. Or specify a different file with DATABASE_CONFIG_FILE environment variable:\n` +
-          `   DATABASE_CONFIG_FILE=your-config.yml pnpm start`
+          `\n2. Or specify a different file with CONFIG_FILE environment variable:\n` +
+          `   CONFIG_FILE=your-config.yml pnpm start`
         );
       }
       
@@ -162,29 +151,6 @@ class Environment {
   getDatabaseKeys(): string[] {
     const config = this.getConfig();
     return Object.keys(config);
-  }
-
-  /**
-   * Get configuration file path
-   */
-  getConfigFilePath(): string {
-    return this.configFilePath;
-  }
-
-  /**
-   * Get project root path
-   */
-  getProjectRoot(): string {
-    return PROJECT_ROOT;
-  }
-
-  /**
-   * Reload environment configuration
-   */
-  async reload(): Promise<void> {
-    this.isLoaded = false;
-    this.config = null;
-    await this.load();
   }
 }
 

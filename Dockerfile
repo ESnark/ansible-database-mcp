@@ -17,4 +17,4 @@ EXPOSE 3000
 RUN pnpm build
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/bin/sh", "-c", "NODE_ENV=production PORT=3000 node dist/main.js"]
+CMD ["/bin/sh", "-c", "NODE_ENV=production PORT=3000 CONFIG_FILE=/config/env.yml CONTEXT_FILE=/config/context.md node dist/main.js"]

@@ -5,6 +5,9 @@
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
   "type": "module",
+  "bin": {
+    "ansible-database-mcp": "./dist/cli.js"
+  },
   "imports": {
     "#*": "./dist/*"
   },
