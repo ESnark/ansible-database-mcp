@@ -1,5 +1,15 @@
 # ansible-database-mcp
 
+## 1.3.0
+
+### Minor Changes
+
+- 3b6ea59: Add authentication supports
+
+### Patch Changes
+
+- bab9588: optimize image build script
+
 ## 1.2.0
 
 ### Minor Changes
