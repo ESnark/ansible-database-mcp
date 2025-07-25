@@ -9,6 +9,13 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      # Authentication configuration (uncomment to enable)
+      # - AUTH_TYPE=bearer
+      # - BEARER_TOKEN=your-secret-token
+      # OR for OAuth:
+      # - AUTH_TYPE=oauth
+      # - OAUTH_ISSUER=https://your-auth-provider.com
+      # - OAUTH_AUDIENCE=your-api-audience
     volumes:
       - ./logs:/app/logs
       - ./env.yml:/config/env.yml:ro

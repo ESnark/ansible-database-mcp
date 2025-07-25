@@ -4,9 +4,33 @@ MCP (Model Context Protocol) Server that enables safe and fast database queries 
 
 ## Quick Start
 
+### Without Authentication (Default)
 ```bash
 docker run -d \
   -p 3000:3000 \
+  -v ./config/:/config/:ro \
+  --name ansible-mcp \
+  YOUR_DOCKERHUB_USERNAME/ansible-database-mcp:latest
+```
+
+### With Bearer Token Authentication
+```bash
+docker run -d \
+  -p 3000:3000 \
+  -e AUTH_TYPE=bearer \
+  -e BEARER_TOKEN=your-secret-token \
+  -v ./config/:/config/:ro \
+  --name ansible-mcp \
+  YOUR_DOCKERHUB_USERNAME/ansible-database-mcp:latest
+```
+
+### With OAuth Authentication
+```bash
+docker run -d \
+  -p 3000:3000 \
+  -e AUTH_TYPE=oauth \
+  -e OAUTH_ISSUER=https://your-auth-provider.com \
+  -e OAUTH_AUDIENCE=your-api-audience \
   -v ./config/:/config/:ro \
   --name ansible-mcp \
   YOUR_DOCKERHUB_USERNAME/ansible-database-mcp:latest
@@ -68,6 +92,23 @@ Note: Database schema can be discovered automatically through MCP tools.
 Providing context helps with faster and more accurate queries, but is not required.
 ```
 
+## Authentication
+
+The server supports three authentication modes:
+
+1. **No Authentication** (default): Suitable for development or trusted environments
+2. **Bearer Token**: Simple API key authentication
+3. **OAuth 2.1**: JWT token validation with JWKS support
+
+### Environment Variables
+
+| Variable | Description | Required When |
+|----------|-------------|---------------|
+| `AUTH_TYPE` | Authentication type: `bearer`, `oauth`, or omit for no auth | Optional |
+| `BEARER_TOKEN` | Secret token for Bearer authentication | `AUTH_TYPE=bearer` |
+| `OAUTH_ISSUER` | OAuth 2.1 provider URL | `AUTH_TYPE=oauth` |
+| `OAUTH_AUDIENCE` | Expected audience for JWT tokens | `AUTH_TYPE=oauth` |
+
 ## Security
 
 - Automatic write permission verification on connection
@@ -75,6 +116,7 @@ Providing context helps with faster and more accurate queries, but is not requir
 - SQL injection prevention
 - Connection isolation
 - Configurable query timeouts (10-60 seconds)
+- API endpoint authentication (Bearer Token or OAuth)
 
 ## Links
 

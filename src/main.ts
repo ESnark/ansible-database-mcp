@@ -3,9 +3,13 @@ import cors from 'cors';
 import { mcpMiddleware } from './middleware.js';
 import { Request, Response } from 'express';
 import environment from '@/config/environment.js';
+import { initializeAuth, authMiddleware, getAuthStrategyName } from './auth/index.js';
 
 // Initialize environment configuration
 await environment.load();
+
+// Initialize authentication
+initializeAuth();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,7 +25,8 @@ app.use(cors({
 
 
 
-app.post('/mcp', mcpMiddleware);
+// Apply auth middleware to MCP endpoint
+app.post('/mcp', authMiddleware, mcpMiddleware);
 
 // Health check endpoint
 app.get('/health', (_req, res) => {
@@ -29,6 +34,7 @@ app.get('/health', (_req, res) => {
     status: 'ok',
     name: 'ansible-database',
     version: '1.0.0',
+    auth: getAuthStrategyName()
   });
 });
 
@@ -60,6 +66,7 @@ app.delete('/mcp', async (_req: Request, res: Response) => {
 const server = app.listen(PORT, () => {
   console.log(`\n🚀 MCP server started!`);
   console.log(`📍 Port: ${PORT}`);
+  console.log(`🔐 Authentication: ${getAuthStrategyName()}`);
   console.log(`🔗 MCP endpoint: http://localhost:${PORT}/mcp`);
   console.log(`💚 Health check: http://localhost:${PORT}/health`);
 });

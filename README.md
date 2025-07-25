@@ -124,6 +124,79 @@ This MCP server implements the following security mechanisms to ensure database 
    - Helps AI create effective database queries
 
 
+## Authentication
+
+The MCP server supports three authentication modes for securing access:
+
+### 1. No Authentication (Default)
+By default, the server runs without authentication. This is suitable for local development or trusted environments.
+
+### 2. Bearer Token Authentication
+Use a static Bearer token for simple API key-style authentication.
+
+```bash
+# Set environment variables
+AUTH_TYPE=bearer
+BEARER_TOKEN=your-secret-token
+
+# Example with Docker
+docker run -d \
+  -e AUTH_TYPE=bearer \
+  -e BEARER_TOKEN=your-secret-token \
+  -v ./config/:/config/:ro \
+  -p 3000:3000 \
+  ansible-database-mcp:latest
+
+# Example with npx
+AUTH_TYPE=bearer BEARER_TOKEN=your-secret-token npx ansible-database-mcp
+```
+
+**Claude Desktop Configuration:**
+```json
+{
+  "mcp_servers": [{
+    "type": "url",
+    "url": "https://your-server.com/mcp",
+    "name": "ansible-database",
+    "authorization_token": "your-secret-token"
+  }]
+}
+```
+
+### 3. OAuth 2.1 Authentication
+For enterprise environments, use OAuth 2.1 with JWT token validation.
+
+```bash
+# Set environment variables
+AUTH_TYPE=oauth
+OAUTH_ISSUER=https://your-auth-provider.com
+OAUTH_AUDIENCE=your-mcp-api
+
+# Example with Docker
+docker run -d \
+  -e AUTH_TYPE=oauth \
+  -e OAUTH_ISSUER=https://auth.example.com \
+  -e OAUTH_AUDIENCE=mcp-api \
+  -v ./config/:/config/:ro \
+  -p 3000:3000 \
+  ansible-database-mcp:latest
+```
+
+**Claude Desktop Configuration:**
+1. Go to Settings > Connectors
+2. Add Custom Integration
+3. Enter your server URL
+4. Complete OAuth flow when prompted
+
+### Environment Variables
+
+| Variable | Description | Required When |
+|----------|-------------|---------------|
+| `AUTH_TYPE` | Authentication type: `bearer`, `oauth`, or omit for no auth | Optional |
+| `BEARER_TOKEN` | Secret token for Bearer authentication | `AUTH_TYPE=bearer` |
+| `OAUTH_ISSUER` | OAuth 2.1 provider URL | `AUTH_TYPE=oauth` |
+| `OAUTH_AUDIENCE` | Expected audience for JWT tokens | `AUTH_TYPE=oauth` |
+
 ## Usage
 
 ### Option 1: Using npx (Recommended)
@@ -141,6 +214,9 @@ npx ansible-database-mcp --config ./my-env.yml --context ./my-context.md
 # Run on different port
 npx ansible-database-mcp --port 3001
 
+# Run with Bearer token authentication
+AUTH_TYPE=bearer BEARER_TOKEN=secret npx ansible-database-mcp
+
 # Show help
 npx ansible-database-mcp --help
 ```
@@ -153,8 +229,17 @@ mkdir config
 cp env.yml config/
 cp context.md config/  # Optional
 
-# Run with directory mount
+# Run without authentication
 docker run -d \
+  -v ./config/:/config/:ro \
+  -p 3000:3000 \
+  --name ansible-mcp \
+  ansible-database-mcp:latest
+
+# Run with Bearer token authentication
+docker run -d \
+  -e AUTH_TYPE=bearer \
+  -e BEARER_TOKEN=your-secret-token \
   -v ./config/:/config/:ro \
   -p 3000:3000 \
   --name ansible-mcp \
@@ -172,6 +257,9 @@ pnpm dev
 
 # Run with custom config
 CONFIG_FILE=./custom-env.yml pnpm dev
+
+# Run with authentication
+AUTH_TYPE=bearer BEARER_TOKEN=secret pnpm dev
 
 # Build for production
 pnpm build
