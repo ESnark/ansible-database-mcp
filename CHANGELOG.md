@@ -1,5 +1,14 @@
 # ansible-database-mcp
 
+## 1.3.1
+
+### Patch Changes
+
+- e2ea099: - Fetch OpenID configuration from issuer on startup
+  - Add /.well-known/oauth-protected-resource metadata
+  - Support WWW-Authenticate header for OAuth
+- 2a4691d: add pnpm workspace configuration to build image
+
 ## 1.3.0
 
 ### Minor Changes
