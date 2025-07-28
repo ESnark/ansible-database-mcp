@@ -4,12 +4,13 @@ import { mcpMiddleware } from './middleware.js';
 import { Request, Response } from 'express';
 import environment from '@/config/environment.js';
 import { initializeAuth, authMiddleware, getAuthStrategyName } from './auth/index.js';
+import { isOAuthStrategy } from './auth/auth-middleware.js';
 
 // Initialize environment configuration
 await environment.load();
 
 // Initialize authentication
-initializeAuth();
+const authStrategy = await initializeAuth();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,6 +39,27 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// OAuth endpoints using MCP SDK
+if (isOAuthStrategy(authStrategy)) {
+  const oauthIssuer = process.env.OAUTH_ISSUER!;
+  
+  // Use only the metadata router since we're a resource server, not an auth server
+  
+  const oauthProxyRouter = authStrategy.proxyRouter();
+  app.use(oauthProxyRouter);
+  
+  // Also provide the metadata at the specific MCP endpoint path
+  app.get('/.well-known/oauth-protected-resource/mcp', (_req, res) => {
+    const publicUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+    res.json({
+      resource: `${publicUrl}/mcp`,
+      authorization_servers: [oauthIssuer],
+      resource_name: 'Ansible Database MCP Server',
+      resource_documentation: 'https://github.com/ansible/ansible-database-mcp'
+    });
+  });
+}
+
 app.get('/mcp', async (_req: Request, res: Response) => {
   console.log('Received GET MCP request');
   res.writeHead(405).end(JSON.stringify({
@@ -64,11 +86,13 @@ app.delete('/mcp', async (_req: Request, res: Response) => {
 
 // Start server
 const server = app.listen(PORT, () => {
+  const publicUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
   console.log(`\n🚀 MCP server started!`);
   console.log(`📍 Port: ${PORT}`);
   console.log(`🔐 Authentication: ${getAuthStrategyName()}`);
-  console.log(`🔗 MCP endpoint: http://localhost:${PORT}/mcp`);
-  console.log(`💚 Health check: http://localhost:${PORT}/health`);
+  console.log(`🌐 Public URL: ${publicUrl}`);
+  console.log(`🔗 MCP endpoint: ${publicUrl}/mcp`);
+  console.log(`💚 Health check: ${publicUrl}/health`);
 });
 
 // Graceful shutdown handling

@@ -1,32 +1,89 @@
-import { Request } from 'express';
+import { Request, RequestHandler } from 'express';
 import jwt, { Algorithm } from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import { AuthStrategy } from './auth-strategy.interface.js';
-import { AuthResult, AuthConfig } from '../types.js';
+import { AuthResult, AuthConfig, OpenIdConfig } from '../types.js';
+import { ProxyOAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/providers/proxyProvider.js';
+import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 /**
  * OAuth 2.1 JWT authentication strategy
  */
 export class OAuthStrategy implements AuthStrategy {
+  private static readonly CONFIG_URL = '/.well-known/openid-configuration';
   private issuer: string;
   private audience: string;
-  private jwksUri: string;
+  readonly jwksUri: string;
   private algorithms: Algorithm[];
   private jwksClient: jwksClient.JwksClient;
+  private metadata: OpenIdConfig;
 
-  constructor(private config: AuthConfig) {
+  static async create(config: AuthConfig): Promise<OAuthStrategy> {
     if (!config.oauth?.issuer || !config.oauth?.audience) {
+      throw new Error('OAuth issuer and audience are required');
+    }
+
+    let metadata: OpenIdConfig;
+
+    const r = await fetch(`${config.oauth.issuer}${OAuthStrategy.CONFIG_URL}`).then(res => res.json());
+
+    if (typeof r === 'object' && r !== null &&
+      'authorization_endpoint' in r && typeof r.authorization_endpoint === 'string' &&
+      'token_endpoint' in r && typeof r.token_endpoint === 'string' &&
+      'userinfo_endpoint' in r && typeof r.userinfo_endpoint === 'string' &&
+      'jwks_uri' in r && typeof r.jwks_uri === 'string' &&
+      'introspection_endpoint' in r && typeof r.introspection_endpoint === 'string' &&
+      'registration_endpoint' in r && typeof r.registration_endpoint === 'string' &&
+      'revocation_endpoint' in r && typeof r.revocation_endpoint === 'string' &&
+      'response_types_supported' in r && Array.isArray(r.response_types_supported) && r.response_types_supported.every(v => typeof v === 'string') &&
+      'code_challenge_methods_supported' in r && Array.isArray(r.code_challenge_methods_supported) && r.code_challenge_methods_supported.every(v => typeof v === 'string') &&
+      'token_endpoint_auth_methods_supported' in r && Array.isArray(r.token_endpoint_auth_methods_supported) && r.token_endpoint_auth_methods_supported.every(v => typeof v === 'string') &&
+      'grant_types_supported' in r && Array.isArray(r.grant_types_supported) && r.grant_types_supported.every(v => typeof v === 'string') &&
+      'id_token_signing_alg_values_supported' in r && Array.isArray(r.id_token_signing_alg_values_supported) && r.id_token_signing_alg_values_supported.every(v => typeof v === 'string')
+    ) {
+      metadata = {
+        issuer: config.oauth.issuer,
+        authorization_endpoint: r.authorization_endpoint,
+        token_endpoint: r.token_endpoint,
+        userinfo_endpoint: r.userinfo_endpoint,
+        jwks_uri: r.jwks_uri,
+        introspection_endpoint: r.introspection_endpoint,
+        registration_endpoint: r.registration_endpoint,
+        revocation_endpoint: r.revocation_endpoint,
+        response_types_supported: r.response_types_supported,
+        code_challenge_methods_supported: r.code_challenge_methods_supported,
+        token_endpoint_auth_methods_supported: r.token_endpoint_auth_methods_supported,
+        grant_types_supported: r.grant_types_supported,
+        id_token_signing_alg_values_supported: r.id_token_signing_alg_values_supported
+      }
+    } else {
+      throw new Error('')
+    }
+
+    return new OAuthStrategy({
+      bearer: config.bearer,
+      type: config.type,
+      oauth: {
+        ...config.oauth,
+        jwksUri: metadata.jwks_uri as string,
+      }
+    }, metadata);
+  }
+
+  private constructor(private config: AuthConfig, private oauthMetadata: OpenIdConfig) {
+    if (!config.oauth?.issuer || !config.oauth?.audience || !config.oauth.jwksUri) {
       throw new Error('OAuth issuer and audience are required');
     }
 
     this.issuer = config.oauth.issuer;
     this.audience = config.oauth.audience;
-    this.jwksUri = config.oauth.jwksUri || `${this.issuer}/.well-known/jwks.json`;
+    this.jwksUri = config.oauth.jwksUri;
     this.algorithms = (config.oauth.algorithms || ['RS256', 'RS384', 'RS512']) as Algorithm[];
+    this.metadata = oauthMetadata;
 
-    // Initialize JWKS client
+
     this.jwksClient = jwksClient({
-      jwksUri: this.jwksUri,
+      jwksUri: config.oauth.jwksUri,
       cache: true,
       cacheMaxEntries: 5,
       cacheMaxAge: 600000 // 10 minutes
@@ -129,6 +186,58 @@ export class OAuthStrategy implements AuthStrategy {
     return [];
   }
 
+  proxyRouter(): RequestHandler {
+    // Use PUBLIC_URL from environment or fallback to localhost
+    const publicUrl = process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
+    
+    const provider = new ProxyOAuthServerProvider({
+      endpoints: {
+        authorizationUrl: this.metadata.authorization_endpoint,
+        tokenUrl: this.metadata.token_endpoint,
+        registrationUrl: this.metadata.registration_endpoint,
+        revocationUrl: this.metadata.revocation_endpoint,
+      },
+      getClient: async (clientId) => ({
+        client_id: clientId,
+        // MCP clients don't use OAuth flow directly, they use pre-issued tokens
+        // These redirect URIs are for compatibility with OAuth spec but won't be used
+        redirect_uris: [],
+      }),
+      verifyAccessToken: async (token) => {
+        try {
+          // Reuse the authenticate logic for token verification
+          const decodedToken = jwt.decode(token, { complete: true });
+          if (!decodedToken || typeof decodedToken === 'string') {
+            throw new Error('Invalid token format');
+          }
+
+          const key = await this.getSigningKey(decodedToken.header.kid);
+          const payload = jwt.verify(token, key, {
+            issuer: this.issuer,
+            audience: this.audience,
+            algorithms: this.algorithms
+          }) as jwt.JwtPayload;
+
+          return {
+            token,
+            clientId: payload.sub || payload.client_id || 'oauth-user',
+            scopes: this.extractScopes(payload)
+          };
+        } catch (error) {
+          console.error('Token verification failed:', error);
+          throw error;
+        }
+      }
+    });
+
+    return mcpAuthRouter({
+      provider,
+      issuerUrl: new URL(this.metadata.issuer),
+      baseUrl: new URL(publicUrl),
+      serviceDocumentationUrl: new URL('https://github.com/ansible/ansible-database-mcp'),
+    });
+  }
+
   validateConfig(): void {
     if (!this.config.oauth?.issuer) {
       throw new Error('OAUTH_ISSUER environment variable is required when AUTH_TYPE=oauth');
@@ -148,5 +257,9 @@ export class OAuthStrategy implements AuthStrategy {
 
   getName(): string {
     return 'oauth';
+  }
+
+  getMetadata() {
+    return this.metadata;
   }
 }

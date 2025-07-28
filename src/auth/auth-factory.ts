@@ -13,7 +13,7 @@ export class AuthFactory {
    * @param config Authentication configuration
    * @returns Authentication strategy instance
    */
-  static create(config: AuthConfig): AuthStrategy {
+  static async create(config: AuthConfig): Promise<AuthStrategy> {
     switch (config.type) {
       case 'none':
         return new NoAuthStrategy();
@@ -22,7 +22,7 @@ export class AuthFactory {
         return new BearerTokenStrategy(config);
       
       case 'oauth':
-        return new OAuthStrategy(config);
+        return await OAuthStrategy.create(config);
       
       default:
         throw new Error(`Unknown authentication type: ${(config as any).type}`);

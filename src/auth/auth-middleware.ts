@@ -3,6 +3,7 @@ import { AuthFactory } from './auth-factory.js';
 import { loadAuthConfig } from './auth-config.js';
 import { AuthStrategy } from './strategies/auth-strategy.interface.js';
 import { AuthenticatedRequest } from './types.js';
+import { OAuthStrategy } from './strategies/oauth-strategy.js';
 
 // Singleton auth strategy instance
 let authStrategy: AuthStrategy | null = null;
@@ -11,14 +12,16 @@ let authStrategy: AuthStrategy | null = null;
  * Initialize authentication strategy
  * Should be called once during server startup
  */
-export function initializeAuth(): void {
+export async function initializeAuth(): Promise<AuthStrategy> {
   const config = loadAuthConfig();
-  authStrategy = AuthFactory.create(config);
+  authStrategy = await AuthFactory.create(config);
   
   // Validate configuration
   authStrategy.validateConfig();
   
   console.log(`Authentication initialized: ${authStrategy.getName()}`);
+
+  return authStrategy
 }
 
 /**
@@ -46,6 +49,12 @@ export async function authMiddleware(
     const result = await authStrategy.authenticate(req);
 
     if (!result.authenticated) {
+      // Add WWW-Authenticate header for OAuth
+      if (authStrategy.getName() === 'oauth') {
+        const resourceMetadataUrl = `${req.protocol}://${req.get('host')}/.well-known/oauth-protected-resource`;
+        res.setHeader('WWW-Authenticate', `Bearer resource_metadata="${resourceMetadataUrl}"`);
+      }
+      
       res.status(401).json({
         jsonrpc: '2.0',
         error: {
@@ -81,4 +90,8 @@ export async function authMiddleware(
  */
 export function getAuthStrategyName(): string {
   return authStrategy?.getName() || 'none';
+}
+
+export function isOAuthStrategy(strategy: AuthStrategy): strategy is OAuthStrategy {
+  return strategy.getName() === 'oauth'
 }
