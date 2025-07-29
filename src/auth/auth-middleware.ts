@@ -51,7 +51,8 @@ export async function authMiddleware(
     if (!result.authenticated) {
       // Add WWW-Authenticate header for OAuth
       if (authStrategy.getName() === 'oauth') {
-        const resourceMetadataUrl = `${req.protocol}://${req.get('host')}/.well-known/oauth-protected-resource`;
+        const publicUrl = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+        const resourceMetadataUrl = `${publicUrl}/.well-known/oauth-protected-resource`;
         res.setHeader('WWW-Authenticate', `Bearer resource_metadata="${resourceMetadataUrl}"`);
       }
       
