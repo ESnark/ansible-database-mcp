@@ -20,6 +20,7 @@ export function loadAuthConfig(): AuthConfig {
       type: 'oauth',
       oauth: {
         issuer: process.env.OAUTH_ISSUER || '',
+        issuerPrivate: process.env.OAUTH_ISSUER_PRIVATE,
         audience: process.env.OAUTH_AUDIENCE || '',
         jwksUri: process.env.OAUTH_JWKS_URI,
         algorithms: process.env.OAUTH_ALGORITHMS?.split(',')

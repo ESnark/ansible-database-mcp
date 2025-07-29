@@ -23,6 +23,7 @@ export interface AuthConfig {
   };
   oauth?: {
     issuer: string;
+    issuerPrivate?: string;
     audience: string;
     jwksUri?: string;
     algorithms?: string[];

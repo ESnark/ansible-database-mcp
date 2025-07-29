@@ -55,7 +55,6 @@ if (isOAuthStrategy(authStrategy)) {
       resource: `${publicUrl}/mcp`,
       authorization_servers: [oauthIssuer],
       resource_name: 'Ansible Database MCP Server',
-      resource_documentation: 'https://github.com/ansible/ansible-database-mcp'
     });
   });
 }

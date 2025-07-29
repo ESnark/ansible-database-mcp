@@ -25,7 +25,11 @@ export class OAuthStrategy implements AuthStrategy {
 
     let metadata: OpenIdConfig;
 
-    const r = await fetch(`${config.oauth.issuer}${OAuthStrategy.CONFIG_URL}`).then(res => res.json());
+    const configUrl = config.oauth.issuerPrivate
+      ? `${config.oauth.issuerPrivate}${OAuthStrategy.CONFIG_URL}`
+      : `${config.oauth.issuer}${OAuthStrategy.CONFIG_URL}`;
+
+    const r = await fetch(configUrl).then(res => res.json());
 
     if (typeof r === 'object' && r !== null &&
       'authorization_endpoint' in r && typeof r.authorization_endpoint === 'string' &&
