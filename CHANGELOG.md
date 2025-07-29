@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.2
+
+### Patch Changes
+
+- a76b4e3: improve error handling for invalid OAuth configuration
+
 ## 1.3.1
 
 ### Patch Changes
