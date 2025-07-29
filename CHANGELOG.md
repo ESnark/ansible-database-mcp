@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.5
+
+### Patch Changes
+
+- 300c517: remove authorization server endpoints from resource server
+
 ## 1.3.4
 
 ### Patch Changes
