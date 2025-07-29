@@ -39,18 +39,24 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// OAuth endpoints using MCP SDK
+// OAuth endpoints for resource server
 if (isOAuthStrategy(authStrategy)) {
   const oauthIssuer = process.env.OAUTH_ISSUER!;
+  const publicUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
   
-  // Use only the metadata router since we're a resource server, not an auth server
+  // Resource server metadata endpoint (RFC 8414)
+  app.get('/.well-known/oauth-protected-resource', (_req, res) => {
+    res.json({
+      resource: publicUrl,
+      authorization_servers: [oauthIssuer],
+      scopes_supported: ['read', 'write'],
+      bearer_methods_supported: ['header'],
+      resource_documentation: 'https://github.com/ansible/ansible-database-mcp',
+    });
+  });
   
-  const oauthProxyRouter = authStrategy.proxyRouter();
-  app.use(oauthProxyRouter);
-  
-  // Also provide the metadata at the specific MCP endpoint path
+  // MCP-specific resource metadata
   app.get('/.well-known/oauth-protected-resource/mcp', (_req, res) => {
-    const publicUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
     res.json({
       resource: `${publicUrl}/mcp`,
       authorization_servers: [oauthIssuer],

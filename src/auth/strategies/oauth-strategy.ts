@@ -1,10 +1,9 @@
-import { Request, RequestHandler } from 'express';
+import { Request } from 'express';
 import jwt, { Algorithm } from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import { AuthStrategy } from './auth-strategy.interface.js';
 import { AuthResult, AuthConfig, OpenIdConfig } from '../types.js';
-import { ProxyOAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/providers/proxyProvider.js';
-import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
+// Removed ProxyOAuthServerProvider and mcpAuthRouter imports - resource server doesn't need them
 
 /**
  * OAuth 2.1 JWT authentication strategy
@@ -190,58 +189,6 @@ export class OAuthStrategy implements AuthStrategy {
     return [];
   }
 
-  proxyRouter(): RequestHandler {
-    // Use PUBLIC_URL from environment or fallback to localhost
-    const publicUrl = process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
-    
-    const provider = new ProxyOAuthServerProvider({
-      endpoints: {
-        authorizationUrl: this.metadata.authorization_endpoint,
-        tokenUrl: this.metadata.token_endpoint,
-        registrationUrl: this.metadata.registration_endpoint,
-        revocationUrl: this.metadata.revocation_endpoint,
-      },
-      getClient: async (clientId) => ({
-        client_id: clientId,
-        // MCP clients don't use OAuth flow directly, they use pre-issued tokens
-        // These redirect URIs are for compatibility with OAuth spec but won't be used
-        redirect_uris: [],
-      }),
-      verifyAccessToken: async (token) => {
-        try {
-          // Reuse the authenticate logic for token verification
-          const decodedToken = jwt.decode(token, { complete: true });
-          if (!decodedToken || typeof decodedToken === 'string') {
-            throw new Error('Invalid token format');
-          }
-
-          const key = await this.getSigningKey(decodedToken.header.kid);
-          const payload = jwt.verify(token, key, {
-            issuer: this.issuer,
-            audience: this.audience,
-            algorithms: this.algorithms
-          }) as jwt.JwtPayload;
-
-          return {
-            token,
-            clientId: payload.sub || payload.client_id || 'oauth-user',
-            scopes: this.extractScopes(payload)
-          };
-        } catch (error) {
-          console.error('Token verification failed:', error);
-          throw error;
-        }
-      }
-    });
-
-    return mcpAuthRouter({
-      provider,
-      issuerUrl: new URL(this.metadata.issuer),
-      baseUrl: new URL(publicUrl),
-      serviceDocumentationUrl: new URL('https://github.com/ansible/ansible-database-mcp'),
-    });
-  }
-
   validateConfig(): void {
     if (!this.config.oauth?.issuer) {
       throw new Error('OAUTH_ISSUER environment variable is required when AUTH_TYPE=oauth');
@@ -261,9 +208,5 @@ export class OAuthStrategy implements AuthStrategy {
 
   getName(): string {
     return 'oauth';
-  }
-
-  getMetadata() {
-    return this.metadata;
   }
 }
