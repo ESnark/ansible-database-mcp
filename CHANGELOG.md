@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.3
+
+### Patch Changes
+
+- 69c5c40: add private issuer support for OAuth configuration
+
 ## 1.3.2
 
 ### Patch Changes
