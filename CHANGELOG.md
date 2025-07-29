@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.4
+
+### Patch Changes
+
+- c725040: update resource metadata URL construction in auth middleware
+
 ## 1.3.3
 
 ### Patch Changes
