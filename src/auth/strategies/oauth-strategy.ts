@@ -57,7 +57,7 @@ export class OAuthStrategy implements AuthStrategy {
         id_token_signing_alg_values_supported: r.id_token_signing_alg_values_supported
       }
     } else {
-      throw new Error('')
+      throw new Error('Invalid OAuth configuration: ' + JSON.stringify(r))
     }
 
     return new OAuthStrategy({
