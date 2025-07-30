@@ -51,12 +51,9 @@ if (isOAuthStrategy(authStrategy)) {
   const publicUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
   
   app.head('/', (_req, res) => {
-    
-    res.writeHead(401, {
-      'WWW-Authenticate': `Bearer realm="Ansible Database MCP",\n
-error="invalid_token", resource_metadata="${publicUrl}/.well-known/oauth-protected-resource"`
-    })
-    .end();
+    res.status(401)
+        .set('WWW-Authenticate', `Bearer realm="Ansible Database MCP", error="invalid_token", resource_metadata="${publicUrl}/.well-known/oauth-protected-resource"`)
+        .end();
   });
 
   // Resource server metadata endpoint (RFC 8414)

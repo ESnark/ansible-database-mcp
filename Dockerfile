@@ -8,11 +8,6 @@ RUN npm install -g pnpm
 
 WORKDIR /app
 
-RUN echo "onlyBuiltDependencies=true" >> .npmrc
-RUN echo "onlyBuiltDependencies[]=@swc/core" >> .npmrc
-RUN echo "onlyBuiltDependencies[]=esbuild" >> .npmrc
-RUN echo "onlyBuiltDependencies[]=lz4" >> .npmrc
-
 COPY package*.json pnpm-lock.yaml tsconfig.json tsup.config.ts ./
 
 RUN pnpm install --frozen-lockfile
@@ -20,6 +15,8 @@ RUN pnpm install --frozen-lockfile
 COPY src ./src
 
 RUN pnpm build
+
+RUN pnpm approve-builds @swc/core esbuild lz4
 
 RUN pnpm prune --prod
 
@@ -35,9 +32,7 @@ WORKDIR /app
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 
-
-RUN echo "onlyBuiltDependencies=true" >> .npmrc
-RUN echo "onlyBuiltDependencies[]=lz4" >> .npmrc
+RUN pnpm approve-builds lz4
 
 # Install production dependencies with native modules rebuilt
 RUN npm install -g pnpm && \
