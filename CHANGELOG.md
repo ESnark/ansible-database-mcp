@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.8
+
+### Patch Changes
+
+- 3906ed4: fix Dockerfile and main.ts
+
 ## 1.3.7
 
 ### Patch Changes
