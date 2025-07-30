@@ -15,7 +15,7 @@ export class OAuthStrategy implements AuthStrategy {
   readonly jwksUri: string;
   private algorithms: Algorithm[];
   private jwksClient: jwksClient.JwksClient;
-  private metadata: OpenIdConfig;
+  private metadata: OpenIdConfig; // Keep OAuth metadata for potential future use
 
   static async create(config: AuthConfig): Promise<OAuthStrategy> {
     if (!config.oauth?.issuer || !config.oauth?.audience) {

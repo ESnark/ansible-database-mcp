@@ -27,7 +27,7 @@ app.use(cors({
 
 
 // Apply auth middleware to MCP endpoint
-app.post('/mcp', authMiddleware, mcpMiddleware);
+app.post('/', authMiddleware, mcpMiddleware);
 
 // Health check endpoint
 app.get('/health', (_req, res) => {
@@ -44,6 +44,13 @@ if (isOAuthStrategy(authStrategy)) {
   const oauthIssuer = process.env.OAUTH_ISSUER!;
   const publicUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
   
+  app.head('/', (_req, res) => {
+    
+    res.sendStatus(401);
+    res.setHeader('WWW-Authenticate', `Bearer realm="Ansible Database MCP",\n
+error="invalid_token", resource_metadata="${publicUrl}/.well-known/oauth-protected-resource"`);
+  });
+
   // Resource server metadata endpoint (RFC 8414)
   app.get('/.well-known/oauth-protected-resource', (_req, res) => {
     res.json({
@@ -54,18 +61,9 @@ if (isOAuthStrategy(authStrategy)) {
       resource_documentation: 'https://github.com/ansible/ansible-database-mcp',
     });
   });
-  
-  // MCP-specific resource metadata
-  app.get('/.well-known/oauth-protected-resource/mcp', (_req, res) => {
-    res.json({
-      resource: `${publicUrl}/mcp`,
-      authorization_servers: [oauthIssuer],
-      resource_name: 'Ansible Database MCP Server',
-    });
-  });
 }
 
-app.get('/mcp', async (_req: Request, res: Response) => {
+app.get('/', async (_req: Request, res: Response) => {
   console.log('Received GET MCP request');
   res.writeHead(405).end(JSON.stringify({
     jsonrpc: "2.0",
@@ -77,7 +75,7 @@ app.get('/mcp', async (_req: Request, res: Response) => {
   }));
 });
 
-app.delete('/mcp', async (_req: Request, res: Response) => {
+app.delete('/', async (_req: Request, res: Response) => {
   console.log('Received DELETE MCP request');
   res.writeHead(405).end(JSON.stringify({
     jsonrpc: "2.0",
@@ -95,8 +93,7 @@ const server = app.listen(PORT, () => {
   console.log(`\n🚀 MCP server started!`);
   console.log(`📍 Port: ${PORT}`);
   console.log(`🔐 Authentication: ${getAuthStrategyName()}`);
-  console.log(`🌐 Public URL: ${publicUrl}`);
-  console.log(`🔗 MCP endpoint: ${publicUrl}/mcp`);
+  console.log(`🔗 MCP endpoint: ${publicUrl}`);
   console.log(`💚 Health check: ${publicUrl}/health`);
 });
 
