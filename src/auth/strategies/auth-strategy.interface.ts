@@ -21,5 +21,5 @@ export interface AuthStrategy {
   /**
    * Get the strategy name
    */
-  getName(): string;
+  getName(): 'none' | 'bearer' | 'oauth';
 }

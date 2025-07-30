@@ -206,7 +206,7 @@ export class OAuthStrategy implements AuthStrategy {
     }
   }
 
-  getName(): string {
-    return 'oauth';
+  getName() {
+    return 'oauth' as const;
   }
 }

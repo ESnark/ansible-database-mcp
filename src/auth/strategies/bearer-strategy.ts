@@ -67,7 +67,7 @@ export class BearerTokenStrategy implements AuthStrategy {
     }
   }
 
-  getName(): string {
-    return 'bearer';
+  getName() {
+    return 'bearer' as const;
   }
 }

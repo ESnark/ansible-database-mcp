@@ -39,6 +39,12 @@ app.get('/health', (_req, res) => {
   });
 });
 
+
+if (authStrategy.getName() === 'none') {
+  app.head('/', (_req, res) => {
+    res.sendStatus(200);
+  });
+}
 // OAuth endpoints for resource server
 if (isOAuthStrategy(authStrategy)) {
   const oauthIssuer = process.env.OAUTH_ISSUER!;
@@ -46,9 +52,11 @@ if (isOAuthStrategy(authStrategy)) {
   
   app.head('/', (_req, res) => {
     
-    res.sendStatus(401);
-    res.setHeader('WWW-Authenticate', `Bearer realm="Ansible Database MCP",\n
-error="invalid_token", resource_metadata="${publicUrl}/.well-known/oauth-protected-resource"`);
+    res.writeHead(401, {
+      'WWW-Authenticate': `Bearer realm="Ansible Database MCP",\n
+error="invalid_token", resource_metadata="${publicUrl}/.well-known/oauth-protected-resource"`
+    })
+    .end();
   });
 
   // Resource server metadata endpoint (RFC 8414)

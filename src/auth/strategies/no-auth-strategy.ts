@@ -19,7 +19,7 @@ export class NoAuthStrategy implements AuthStrategy {
     // No configuration needed for no-auth
   }
 
-  getName(): string {
-    return 'none';
+  getName() {
+    return 'none' as const;
   }
 }
