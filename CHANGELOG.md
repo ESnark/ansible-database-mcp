@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.7
+
+### Patch Changes
+
+- 8c34116: add HEAD request handling for unauthenticated access
+
 ## 1.3.6
 
 ### Patch Changes
