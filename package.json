@@ -1,6 +1,6 @@
 {
   "name": "ansible-database-mcp",
-  "version": "1.3.7",
+  "version": "1.3.8",
   "description": "MCP Server for Safe & Fast human language queries",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -58,7 +58,11 @@
     "node": ">=22.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@swc/core", "esbuild", "lz4"]
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "esbuild",
+      "lz4"
+    ]
   },
   "repository": {
     "type": "git",
