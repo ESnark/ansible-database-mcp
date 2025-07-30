@@ -14,9 +14,9 @@ RUN pnpm install --frozen-lockfile
 
 COPY src ./src
 
-RUN pnpm build
-
 RUN pnpm approve-builds @swc/core esbuild lz4
+
+RUN pnpm build
 
 RUN pnpm prune --prod
 
@@ -32,12 +32,15 @@ WORKDIR /app
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 
-RUN pnpm approve-builds lz4
 
 # Install production dependencies with native modules rebuilt
-RUN npm install -g pnpm && \
-    pnpm install --prod --frozen-lockfile && \
+RUN npm install -g pnpm
+
+RUN pnpm approve-builds lz4
+
+RUN pnpm install --prod --frozen-lockfile && \
     pnpm rebuild
+
 COPY --from=builder /app/dist ./dist
 
 COPY entrypoint.sh /entrypoint.sh
