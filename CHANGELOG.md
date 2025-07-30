@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.6
+
+### Patch Changes
+
+- 02ef748: Implements RFC 9728
+
 ## 1.3.5
 
 ### Patch Changes
