@@ -11,16 +11,36 @@ WORKDIR /app
 
 COPY package*.json pnpm-lock.yaml tsconfig.json tsup.config.ts ./
 
+RUN pnpm install --frozen-lockfile
+
 COPY src ./src
 
 RUN pnpm approve-builds @swc/core esbuild lz4
 
+RUN pnpm build
+
+RUN pnpm prune --prod
+
+# Runtime stage
+FROM base
+
+# Install runtime dependencies for native modules
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Copy package files first
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
+
+RUN pnpm approve-builds lz4
+
 RUN pnpm install --prod --frozen-lockfile && \
-    pnpm build && \
-    pnpm prune --prod
+    pnpm rebuild
+
+COPY --from=builder /app/dist ./dist
 
 COPY entrypoint.sh /entrypoint.sh
-
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 3000
