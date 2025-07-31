@@ -22,9 +22,14 @@ const getGuideContent = async () => {
     return guideContent;
   }
 
-  const guidePath = Paths.getGuidePath();
-  guideContent = readFileSync(guidePath, 'utf-8');
-  return guideContent;
+  try {
+    const guidePath = Paths.getGuidePath();
+    guideContent = readFileSync(guidePath, 'utf-8');
+    return guideContent;
+  } catch (error) {
+    console.error(`Error reading guide file: ${error}`);
+    return '';
+  }
 };
 
 
