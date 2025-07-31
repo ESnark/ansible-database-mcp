@@ -5,7 +5,7 @@ RUN apk add --no-cache python3 make g++ gcc libc-dev
 RUN npm install -g pnpm
 
 # Multi-platform build stage
-FROM base
+FROM base AS builder
 
 WORKDIR /app
 
