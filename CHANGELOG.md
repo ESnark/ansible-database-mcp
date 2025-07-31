@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.9
+
+### Patch Changes
+
+- b74be06: add error handling for reading guide file
+
 ## 1.3.8
 
 ### Patch Changes
