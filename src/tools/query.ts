@@ -6,7 +6,10 @@ import environment from "../config/environment.js";
 
 const definition: ToolDefinition = {
   name: 'execute-sql-query',
-  description: 'Execute SQL query and return results. Validates write permissions on connection to ensure read-only access.',
+  description: 'Execute SQL query and return results. Validates write permissions on connection to ensure read-only access. ' +
+    'IMPORTANT: For Databricks connections with EXECUTE permissions - if your query calls any functions or stored procedures, ' +
+    'please review them carefully before execution as they could potentially modify data. Ask the user to confirm before ' +
+    'executing any CALL statements or function invocations on Databricks.',
   inputSchema: {
     query: z.string().describe('SQL query to execute'),
     database: z.string().describe('Database name to connect to'),
