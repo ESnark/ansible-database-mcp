@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.13
+
+### Patch Changes
+
+- 1e338a1: enhance databricks permission check logic
+
 ## 1.3.12
 
 ### Patch Changes
