@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.10
+
+### Patch Changes
+
+- ea57504: enhanced error handling
+
 ## 1.3.9
 
 ### Patch Changes
