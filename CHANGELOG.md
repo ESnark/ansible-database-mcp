@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.12
+
+### Patch Changes
+
+- 41105f3: update Databricks permission checking for Unity Catalog
+
 ## 1.3.11
 
 ### Patch Changes
