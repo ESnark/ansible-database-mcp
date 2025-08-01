@@ -88,10 +88,17 @@ export async function executeQuery(dbKey: string, params: QueryParams): Promise<
     logError('Query execution error', error);
     logQuery(query, params, executionTime, false, error.message);
 
+    // Return full error details for better debugging
     return {
       success: false,
-      error: error.message,
-      message: 'An error occurred while executing the query.'
+      error: error.message || 'Unknown error',
+      message: error.stack || 'An error occurred while executing the query.',
+      details: {
+        code: error.code,
+        statusCode: error.statusCode,
+        sqlState: error.sqlState,
+        originalError: error.toString()
+      }
     };
   } finally {
     // Return connection

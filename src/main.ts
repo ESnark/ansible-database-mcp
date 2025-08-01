@@ -15,8 +15,23 @@ const authStrategy = await initializeAuth();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// JSON parsing middleware
-app.use(express.json());
+// JSON parsing middleware with error handling
+app.use(express.json({ limit: '10mb' }));
+
+// JSON parsing error handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err instanceof SyntaxError && 'body' in err) {
+    return res.status(400).json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32700, // Parse error in JSON-RPC
+        message: 'Invalid JSON syntax: ' + err.message
+      },
+      id: null
+    });
+  }
+  next(err);
+});
 
 // CORS middleware
 app.use(cors({

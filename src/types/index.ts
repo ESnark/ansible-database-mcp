@@ -17,6 +17,7 @@ export interface APIResponse<T = any> {
   data?: T;
   error?: string;
   message?: string;
+  details?: any;
 }
 
 export interface QueryResult {

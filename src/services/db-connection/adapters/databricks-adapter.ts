@@ -73,8 +73,9 @@ export class DatabricksAdapter extends EventEmitter {
       for (let i = 0; i < this.poolSize.min; i++) {
         await this.createSession();
       }
-    } catch (error) {
-      throw new Error(`Failed to initialize Databricks connection: ${error}`);
+    } catch (error: any) {
+      console.error('[Databricks] Connection error:', error);
+      throw error;
     }
   }
 
@@ -87,15 +88,21 @@ export class DatabricksAdapter extends EventEmitter {
     }
 
     const connection = this.config.connection as any;
-    const session = await this.client.openSession({
-      initialCatalog: connection.catalog,
-      initialSchema: connection.database  // database field is used as schema in Databricks
-    });
-
-    this.sessions.push(session);
-    this.availableSessions.push(session);
     
-    return session;
+    try {
+      const session = await this.client.openSession({
+        initialCatalog: connection.catalog,
+        initialSchema: connection.database  // database field is used as schema in Databricks
+      });
+
+      this.sessions.push(session);
+      this.availableSessions.push(session);
+      
+      return session;
+    } catch (error: any) {
+      console.error('[Databricks] Session creation error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -177,6 +184,9 @@ export class DatabricksAdapter extends EventEmitter {
         rows: result,
         fields
       };
+    } catch (error: any) {
+      console.error('[Databricks] Query execution error:', error);
+      throw error;
     } finally {
       this.releaseSession(session);
     }

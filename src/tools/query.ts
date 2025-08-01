@@ -56,16 +56,23 @@ const handler: ToolCallback<typeof definition.inputSchema> = async (args) => {
         ],
       };
     } else {
-      // Format the error result
+      // Format the error result with full details
+      const errorResponse: any = {
+        success: false,
+        error: result.error || 'Unknown error occurred',
+        message: result.message || 'Query execution failed',
+      };
+      
+      // Include details if available
+      if (result.details) {
+        errorResponse.details = result.details;
+      }
+      
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({
-              success: false,
-              error: result.error || 'Unknown error occurred',
-              message: result.message || 'Query execution failed',
-            }, null, 2),
+            text: JSON.stringify(errorResponse, null, 2),
           },
         ],
       };
