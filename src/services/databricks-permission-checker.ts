@@ -25,10 +25,23 @@ export async function isDatabricksReadOnlySession(adapter: DatabricksAdapter): P
     const userResult = await adapter.raw('SELECT current_user() as user');
     const currentUser = userResult.rows[0]?.user || 'unknown';
     
+    // Get current catalog for Unity Catalog
+    const catalogResult = await adapter.raw('SELECT current_catalog() as catalog');
+    const currentCatalog = catalogResult.rows[0]?.catalog;
+    
     // Check if user can create tables (write permission indicator)
     try {
-      // Try to get create table permissions - this will fail if no write access
-      await adapter.raw(`SHOW GRANT ON CATALOG`);
+      // For Unity Catalog, we need to specify the catalog name
+      if (currentCatalog) {
+        await adapter.raw(`SHOW GRANTS ON CATALOG ${currentCatalog}`);
+      } else {
+        // If no catalog is set, try to check schema permissions
+        const schemaResult = await adapter.raw('SELECT current_schema() as schema');
+        const currentSchema = schemaResult.rows[0]?.schema;
+        if (currentSchema) {
+          await adapter.raw(`SHOW GRANTS ON SCHEMA ${currentSchema}`);
+        }
+      }
       
       // If we can show grants, parse them to check for write permissions
       // In Databricks, write permissions include: CREATE, MODIFY, DELETE, etc.
