@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.11
+
+### Patch Changes
+
+- a1c7809: relsolve path alias problem
+
 ## 1.3.10
 
 ### Patch Changes
