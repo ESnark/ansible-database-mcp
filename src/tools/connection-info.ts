@@ -1,6 +1,6 @@
 import { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ToolDefinition } from "../types/modelcontextprotocol.js";
-import { getDatabaseList } from "@/services/db-connection/index.js";
+import { getDatabaseList } from "../services/db-connection/index.js";
 
 const definition: ToolDefinition = {
   name: 'connection-info',

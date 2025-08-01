@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { mcpMiddleware } from './middleware.js';
 import { Request, Response } from 'express';
-import environment from '@/config/environment.js';
+import environment from './config/environment.js';
 import { initializeAuth, authMiddleware, getAuthStrategyName } from './auth/index.js';
 import { isOAuthStrategy } from './auth/auth-middleware.js';
 
@@ -19,9 +19,9 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '10mb' }));
 
 // JSON parsing error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction): void => {
   if (err instanceof SyntaxError && 'body' in err) {
-    return res.status(400).json({
+    res.status(400).json({
       jsonrpc: '2.0',
       error: {
         code: -32700, // Parse error in JSON-RPC
@@ -29,6 +29,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
       },
       id: null
     });
+    return;
   }
   next(err);
 });

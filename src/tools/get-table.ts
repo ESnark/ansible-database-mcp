@@ -1,8 +1,8 @@
 import { ToolDefinition } from "../types/modelcontextprotocol.js";
 import { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
-import { getTableInfo } from "@/services/table-info.js";
-import environment from "@/config/environment.js";
+import { getTableInfo } from "../services/table-info.js";
+import environment from "../config/environment.js";
 
 const definition: ToolDefinition = {
   name: 'get-table',

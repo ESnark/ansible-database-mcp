@@ -1,8 +1,8 @@
 import { ToolDefinition } from "../types/modelcontextprotocol.js";
 import { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
-import { executeQuery } from "@/services/query.js";
-import environment from "@/config/environment.js";
+import { executeQuery } from "../services/query.js";
+import environment from "../config/environment.js";
 
 const definition: ToolDefinition = {
   name: 'execute-sql-query',

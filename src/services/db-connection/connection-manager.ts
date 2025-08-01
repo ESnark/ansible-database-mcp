@@ -9,7 +9,7 @@ import { createPoolConfigurator } from './pool-configurator.js';
 import timeoutManager from './timeout-manager.js';
 import { isStrictlyReadOnlySession } from '../write-permission-checker.js';
 import { DatabaseConfig, isDatabricksConnection, isTraditionalDBConnection } from './type.js';
-import environment from '@/config/environment.js';
+import environment from '../../config/environment.js';
 import { DatabricksAdapter } from './adapters/databricks-adapter.js';
 import { isDatabricksReadOnlySession } from '../databricks-permission-checker.js';
 
