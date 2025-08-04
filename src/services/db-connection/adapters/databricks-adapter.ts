@@ -106,6 +106,21 @@ export class DatabricksAdapter extends EventEmitter {
   }
 
   /**
+   * Check if session is still valid using getInfo
+   */
+  private async isSessionValid(session: IDBSQLSession): Promise<boolean> {
+    try {
+      // Use getInfo to check if session is still active
+      // TGetInfoType.CLI_SERVER_NAME = 13 (more appropriate for simple check)
+      await session.getInfo(13);
+      return true;
+    } catch (error: any) {
+      console.log('[Databricks] Session validation failed:', error.message);
+      return false;
+    }
+  }
+
+  /**
    * Acquire a session from the pool
    */
   async acquireSession(): Promise<IDBSQLSession> {
@@ -113,7 +128,19 @@ export class DatabricksAdapter extends EventEmitter {
       throw new Error('Connection pool has been destroyed');
     }
 
-    // If there's an available session, use it
+    // Clean up invalid sessions from available pool
+    const validSessions: IDBSQLSession[] = [];
+    for (const session of this.availableSessions) {
+      if (await this.isSessionValid(session)) {
+        validSessions.push(session);
+      } else {
+        console.log('[Databricks] Removing invalid session from pool');
+        await this.invalidateSession(session);
+      }
+    }
+    this.availableSessions = validSessions;
+
+    // If there's an available valid session, use it
     if (this.availableSessions.length > 0) {
       const session = this.availableSessions.pop()!;
       this.activeSessions.add(session);
@@ -220,6 +247,30 @@ export class DatabricksAdapter extends EventEmitter {
       used: this.activeSessions.size,
       free: this.availableSessions.length
     };
+  }
+
+  /**
+   * Invalidate a session and remove it from all pools
+   */
+  private async invalidateSession(session: IDBSQLSession): Promise<void> {
+    try {
+      // Remove from all tracking arrays
+      this.sessions = this.sessions.filter(s => s !== session);
+      this.availableSessions = this.availableSessions.filter(s => s !== session);
+      this.activeSessions.delete(session);
+      
+      // Try to close the session
+      try {
+        await session.close();
+      } catch (error) {
+        // Session might already be closed, ignore error
+        console.log('[Databricks] Error closing invalid session:', error);
+      }
+      
+      console.log('[Databricks] Session invalidated and removed from pool');
+    } catch (error) {
+      console.error('[Databricks] Error invalidating session:', error);
+    }
   }
 
   /**
