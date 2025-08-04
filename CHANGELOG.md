@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.14
+
+### Patch Changes
+
+- 598a42c: validate and invalidate sessions in Databricks adapter
+
 ## 1.3.13
 
 ### Patch Changes
