@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.15
+
+### Patch Changes
+
+- b9995db: improve Databricks connection handling with retry logic
+
 ## 1.3.14
 
 ### Patch Changes
