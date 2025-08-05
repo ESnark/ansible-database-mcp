@@ -33,6 +33,7 @@ export class DatabricksAdapter extends EventEmitter {
   private pendingRequests: Array<(session: IDBSQLSession) => void>;
   private isDestroyed: boolean;
   private poolSize: { min: number; max: number };
+  private readonly MAX_CONNECTION_RETRIES = 3;
 
   constructor(config: DatabaseConfig) {
     super();
@@ -52,7 +53,6 @@ export class DatabricksAdapter extends EventEmitter {
       max: config.pool?.max || 5
     };
 
-    const connection = config.connection;
     this.client = new DBSQLClient();
   }
 
@@ -121,6 +121,59 @@ export class DatabricksAdapter extends EventEmitter {
   }
 
   /**
+   * Check if error is a connection-related error
+   */
+  private isConnectionError(error: any): boolean {
+    if (!error) return false;
+    
+    const errorMessage = error.message || '';
+    const statusCode = error.statusCode;
+    
+    // Only check for explicit indicators
+    return (
+      statusCode === 400 && 
+      errorMessage.includes('THTTPException')
+    );
+  }
+
+  /**
+   * Recreate client connection
+   */
+  private async recreateConnection(): Promise<void> {
+    console.log('[Databricks] Recreating client connection...');
+    
+    // Close existing client
+    try {
+      await this.client.close();
+    } catch (error) {
+      console.error('[Databricks] Error closing client during recreation:', error);
+    }
+    
+    // Clear all sessions
+    this.sessions = [];
+    this.availableSessions = [];
+    this.activeSessions.clear();
+    
+    // Create new client and connect
+    this.client = new DBSQLClient();
+    const connection = this.config.connection as any;
+    
+    await this.client.connect({
+      host: connection.host,
+      port: connection.port || 443,
+      path: connection.path,
+      token: connection.token
+    });
+    
+    // Create minimum number of sessions
+    for (let i = 0; i < this.poolSize.min; i++) {
+      await this.createSession();
+    }
+    
+    console.log('[Databricks] Client connection recreated successfully');
+  }
+
+  /**
    * Acquire a session from the pool
    */
   async acquireSession(): Promise<IDBSQLSession> {
@@ -180,43 +233,71 @@ export class DatabricksAdapter extends EventEmitter {
    * Execute a raw SQL query
    */
   async raw(sql: string, bindings?: any[]): Promise<DatabricksQueryResult> {
-    const session = await this.acquireSession();
+    let lastError: any;
+    let retryCount = 0;
     
-    try {
-      const operation = await session.executeStatement(sql, {
-        runAsync: false,
-        maxRows: 10000 // Configurable limit
-      });
-
-      const result = await operation.fetchAll();
-      
-      let fields: any[] | undefined;
-      if (operation.getSchema) {
+    while (retryCount <= this.MAX_CONNECTION_RETRIES) {
+      try {
+        const session = await this.acquireSession();
+        
         try {
-          const schema = await operation.getSchema();
-          // Convert TTableSchema to array format if needed
-          if (schema && typeof schema === 'object' && 'columns' in schema) {
-            fields = (schema as any).columns || [];
-          } else {
-            fields = undefined;
+          const operation = await session.executeStatement(sql, {
+            runAsync: false,
+            maxRows: 10000 // Configurable limit
+          });
+
+          const result = await operation.fetchAll();
+          
+          let fields: any[] | undefined;
+          if (operation.getSchema) {
+            try {
+              const schema = await operation.getSchema();
+              // Convert TTableSchema to array format if needed
+              if (schema && typeof schema === 'object' && 'columns' in schema) {
+                fields = (schema as any).columns || [];
+              } else {
+                fields = undefined;
+              }
+            } catch {
+              fields = undefined;
+            }
           }
-        } catch {
-          fields = undefined;
+          
+          await operation.close();
+
+          return {
+            rows: result,
+            fields
+          };
+        } catch (error: any) {
+          console.error('[Databricks] Query execution error:', error);
+          throw error;
+        } finally {
+          this.releaseSession(session);
+        }
+      } catch (error: any) {
+        lastError = error;
+        
+        if (this.isConnectionError(error) && retryCount < this.MAX_CONNECTION_RETRIES) {
+          console.log(`[Databricks] Connection error detected, attempting reconnection (${retryCount + 1}/${this.MAX_CONNECTION_RETRIES})`);
+          
+          try {
+            await this.recreateConnection();
+            retryCount++;
+            continue;
+          } catch (reconnectError) {
+            console.error('[Databricks] Failed to recreate connection:', reconnectError);
+            throw reconnectError;
+          }
+        } else {
+          // Not a connection error or max retries reached
+          throw error;
         }
       }
-      
-      await operation.close();
-
-      return {
-        rows: result,
-        fields
-      };
-    } catch (error: any) {
-      console.error('[Databricks] Query execution error:', error);
-      throw error;
-    } finally {
-      this.releaseSession(session);
     }
+    
+    // If we get here, all retries failed
+    throw lastError;
   }
 
   /**
