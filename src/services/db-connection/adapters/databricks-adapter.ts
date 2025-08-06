@@ -278,6 +278,36 @@ export class DatabricksAdapter extends EventEmitter {
       } catch (error: any) {
         lastError = error;
         
+        // Debug logging - full error inspection
+        console.log('[Databricks] Error caught in raw():');
+        console.log('Error type:', error.constructor.name);
+        console.log('Error properties:', Object.keys(error));
+        console.log('Full error object:', JSON.stringify(error, null, 2));
+        
+        // Check all possible error properties
+        const errorInfo = {
+          message: error.message,
+          statusCode: error.statusCode,
+          status: error.status,
+          code: error.code,
+          errno: error.errno,
+          syscall: error.syscall,
+          details: error.details,
+          response: error.response,
+          request: error.request,
+          config: error.config,
+          stack: error.stack,
+          isConnectionError: this.isConnectionError(error),
+          retryCount: retryCount
+        };
+        
+        // Log non-undefined properties
+        const definedProps = Object.entries(errorInfo)
+          .filter(([_, value]) => value !== undefined)
+          .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+        
+        console.log('Defined error properties:', definedProps);
+        
         if (this.isConnectionError(error) && retryCount < this.MAX_CONNECTION_RETRIES) {
           console.log(`[Databricks] Connection error detected, attempting reconnection (${retryCount + 1}/${this.MAX_CONNECTION_RETRIES})`);
           
