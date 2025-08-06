@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.3.16
+
+### Patch Changes
+
+- f0543b7: logging databricks error
+
 ## 1.3.15
 
 ### Patch Changes
