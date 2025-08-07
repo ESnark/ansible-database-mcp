@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { Paths } from '../config/paths.js';
 
 let guideContent: string | undefined;
-let contextContent: string | undefined;
 
 const definition: PromptDefinition = {
   name: 'ask',
@@ -32,26 +31,13 @@ const getGuideContent = async () => {
   }
 };
 
-
-const getContextContent = async () => {
-
-  if (contextContent) {
-    return contextContent;
-  }
-
-  const contextPath = Paths.getContextPath();
-  contextContent = readFileSync(contextPath, 'utf-8');
-  return contextContent;
-};
-
-const handler: (question: string, useContext?: boolean) => Promise<GetPromptResult> = async (question: string, useContext?: boolean) => {
+const handler: (question: string, useContext?: string) => Promise<GetPromptResult> = async (question: string, useContext?: string) => {
   const guideContent = await getGuideContent();
   
   let response = `${guideContent}\n\nQuestion: ${question}`;
 
   if (useContext) {
-    const contextContent = await getContextContent();
-    response += `\n\nContext: ${contextContent}`;
+    response += `\n\nContext: ${useContext}`;
   }
 
   return {
