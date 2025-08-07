@@ -120,9 +120,12 @@ This MCP server implements the following security mechanisms to ensure database 
    - Guide prompt for asking questions about the database
    - Parameters:
      - `question` (required): Question about the database
-     - `use-context` (optional): Whether to include database context
+     - `useContext` (optional): Whether to include database context
    - Helps AI create effective database queries
 
+2. **wrap-up**
+   - Wrap up the conversation and generate a schema document
+   - Can be used to save database context from the conversation and boost the query building process
 
 ## Authentication
 
