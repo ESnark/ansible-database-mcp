@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.4.2
+
+### Patch Changes
+
+- d3344b8: fix project root path calculation
+
 ## 1.4.1
 
 ### Patch Changes
