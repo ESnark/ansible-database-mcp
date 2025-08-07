@@ -56,7 +56,7 @@ export const mcpMiddleware = async (req: Request, res: Response) => {
       },
       (args) => {
         const question = args.question as string;
-        const useContext: boolean = args['use-context'] === 'true';
+        const useContext: string = args['useContext'] as string;
         return ask.handler(question, useContext);
       }
     );

@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = path.resolve(__dirname, '../..');
+const PROJECT_ROOT = __dirname.endsWith('/dist') 
+  ? path.resolve(__dirname, '..')  // dist/main.js -> project root
+  : path.resolve(__dirname, '../..'); // src/config/paths.ts -> project root
 
 export class Paths {
   static getConfigPath(): string {
