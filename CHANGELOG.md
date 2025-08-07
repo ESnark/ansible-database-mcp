@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.4.1
+
+### Patch Changes
+
+- 7483345: lazy load wrap-up content in prompt handler
+
 ## 1.4.0
 
 ### Minor Changes
