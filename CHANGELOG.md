@@ -1,5 +1,15 @@
 # ansible-database-mcp
 
+## 1.4.0
+
+### Minor Changes
+
+- e75f040: Added `wrap-up` prompt to save database context
+
+### Patch Changes
+
+- 4fe110e: update argument name in prompt definition from 'use-context' to 'useContext'
+
 ## 1.3.16
 
 ### Patch Changes
