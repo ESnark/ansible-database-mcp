@@ -12,7 +12,7 @@ const definition: PromptDefinition = {
   description: 'Ask a question about the database',
   arguments: {
     question: z.string(),
-    'use-context': z.string().optional(),
+    useContext: z.string().optional(),
   },
 };
 
