@@ -4,6 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { query, connectionInfo, listTables, getTable } from './tools/index.js';
 import * as ask from './prompts/ask.js';
 import * as context from './resources/context.js';
+import * as wrapUp from "./prompts/wrap-up.js";
 
 export const mcpMiddleware = async (req: Request, res: Response) => {
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
@@ -58,6 +59,14 @@ export const mcpMiddleware = async (req: Request, res: Response) => {
         const useContext: boolean = args['use-context'] === 'true';
         return ask.handler(question, useContext);
       }
+    );
+
+    server.registerPrompt(
+      wrapUp.definition.name,
+      {
+        description: wrapUp.definition.description
+      },
+      wrapUp.handler
     );
 
     server.registerResource(
