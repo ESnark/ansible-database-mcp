@@ -1,6 +1,6 @@
 {
   "name": "ansible-database-mcp",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "MCP Server for Safe & Fast human language queries",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
