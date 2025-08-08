@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.4.3
+
+### Patch Changes
+
+- 499f86d: THTTPException error handling
+
 ## 1.4.2
 
 ### Patch Changes
