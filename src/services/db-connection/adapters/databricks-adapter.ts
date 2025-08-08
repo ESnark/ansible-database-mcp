@@ -122,17 +122,33 @@ export class DatabricksAdapter extends EventEmitter {
 
   /**
    * Check if error is a connection-related error
+   * 
+   * THTTPException is thrown by Databricks SQL client when HTTP transport encounters errors.
+   * Error structure:
+   * - name: 'THTTPException'
+   * - statusCode: HTTP status code (e.g., 400)
+   * - type: Thrift TApplicationException type (7 = PROTOCOL_ERROR)
+   * - response: Node.js Response object with status details
+   * 
+   * Common causes for statusCode 400 with type 7:
+   * - Session expired on server side (default 15 min idle timeout)
+   * - Client connection in stale state after long idle period
+   * - Protocol mismatch between client and server
+   * 
+   * Note: The Databricks SQL Node.js documentation does not provide specific error type
+   * definitions. This error handling is based on empirical observation and Thrift protocol
+   * specifications.
    */
   private isConnectionError(error: any): boolean {
     if (!error) return false;
     
-    const errorMessage = error.message || '';
+    const errorName = error.name || '';
     const statusCode = error.statusCode;
     
     // Only check for explicit indicators
     return (
       statusCode === 400 && 
-      errorMessage.includes('THTTPException')
+      errorName === 'THTTPException'
     );
   }
 
