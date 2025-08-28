@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.5.0
+
+### Minor Changes
+
+- 659a2d5: add standard /mcp endpoint with SSE support and legacy compatibility
+
 ## 1.4.3
 
 ### Patch Changes
