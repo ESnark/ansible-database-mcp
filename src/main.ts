@@ -42,8 +42,14 @@ app.use(cors({
 
 
 
-// Apply auth middleware to MCP endpoint
-app.post('/', authMiddleware, mcpMiddleware);
+// MCP standard endpoint at /mcp
+app.post('/mcp', authMiddleware, mcpMiddleware);
+
+// Legacy endpoint at / for backward compatibility - redirect to /mcp
+app.post('/', (_req: Request, res: Response) => {
+  console.log('Redirecting POST / to /mcp');
+  res.redirect(307, '/mcp');
+});
 
 // Health check endpoint
 app.get('/health', (_req, res) => {
@@ -51,12 +57,21 @@ app.get('/health', (_req, res) => {
     status: 'ok',
     name: 'ansible-database',
     version: '1.0.0',
-    auth: getAuthStrategyName()
+    auth: getAuthStrategyName(),
+    endpoints: {
+      mcp: '/mcp',
+      legacy: '/'
+    }
   });
 });
 
 
+// HEAD request handling for MCP endpoint
 if (authStrategy.getName() === 'none') {
+  app.head('/mcp', (_req, res) => {
+    res.sendStatus(200);
+  });
+  // Legacy support
   app.head('/', (_req, res) => {
     res.sendStatus(200);
   });
@@ -66,6 +81,13 @@ if (isOAuthStrategy(authStrategy)) {
   const oauthIssuer = process.env.OAUTH_ISSUER!;
   const publicUrl = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
   
+  app.head('/mcp', (_req, res) => {
+    res.status(401)
+        .set('WWW-Authenticate', `Bearer realm="Ansible Database MCP", error="invalid_token", resource_metadata="${publicUrl}/.well-known/oauth-protected-resource"`)
+        .end();
+  });
+  
+  // Legacy support
   app.head('/', (_req, res) => {
     res.status(401)
         .set('WWW-Authenticate', `Bearer realm="Ansible Database MCP", error="invalid_token", resource_metadata="${publicUrl}/.well-known/oauth-protected-resource"`)
@@ -84,28 +106,39 @@ if (isOAuthStrategy(authStrategy)) {
   });
 }
 
+// Handle GET requests to MCP endpoint - delegate to SDK for SSE support
+app.get('/mcp', authMiddleware, mcpMiddleware);
+
+// Legacy GET endpoint - redirect to /mcp
 app.get('/', async (_req: Request, res: Response) => {
-  console.log('Received GET MCP request');
-  res.writeHead(405).end(JSON.stringify({
-    jsonrpc: "2.0",
-    error: {
-      code: -32000,
-      message: "Method not allowed."
-    },
-    id: null
-  }));
+  console.log('Redirecting GET / to /mcp');
+  res.redirect(307, '/mcp');
 });
 
-app.delete('/', async (_req: Request, res: Response) => {
-  console.log('Received DELETE MCP request');
-  res.writeHead(405).end(JSON.stringify({
+// Handle DELETE requests to MCP endpoint
+app.delete('/mcp', async (_req: Request, res: Response) => {
+  console.log('Received DELETE /mcp request');
+  res.status(405).json({
     jsonrpc: "2.0",
     error: {
       code: -32000,
       message: "Method not allowed."
     },
     id: null
-  }));
+  });
+});
+
+// Legacy DELETE endpoint
+app.delete('/', async (_req: Request, res: Response) => {
+  console.log('Received DELETE / request');
+  res.status(405).json({
+    jsonrpc: "2.0",
+    error: {
+      code: -32000,
+      message: "Method not allowed."
+    },
+    id: null
+  });
 });
 
 // Start server
@@ -114,7 +147,8 @@ const server = app.listen(PORT, () => {
   console.log(`\n🚀 MCP server started!`);
   console.log(`📍 Port: ${PORT}`);
   console.log(`🔐 Authentication: ${getAuthStrategyName()}`);
-  console.log(`🔗 MCP endpoint: ${publicUrl}`);
+  console.log(`🔗 MCP endpoint: ${publicUrl}/mcp`);
+  console.log(`🔗 Legacy endpoint: ${publicUrl}/ (redirects to /mcp)`);
   console.log(`💚 Health check: ${publicUrl}/health`);
 });
 
