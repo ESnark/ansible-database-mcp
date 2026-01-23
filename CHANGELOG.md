@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.6.0
+
+### Minor Changes
+
+- dc0ef90: off-hours env added
+
 ## 1.5.0
 
 ### Minor Changes
