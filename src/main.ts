@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 import environment from './config/environment.js';
 import { initializeAuth, authMiddleware, getAuthStrategyName } from './auth/index.js';
 import { isOAuthStrategy } from './auth/auth-middleware.js';
+import { offHoursMiddleware, logOffHoursConfig } from './middleware/index.js';
 
 // Initialize environment configuration
 await environment.load();
@@ -40,7 +41,8 @@ app.use(cors({
   credentials: false,
 }))
 
-
+// Off-hours middleware - blocks all requests during configured off-hours
+app.use(offHoursMiddleware);
 
 // MCP standard endpoint at /mcp
 app.post('/mcp', authMiddleware, mcpMiddleware);
@@ -147,6 +149,7 @@ const server = app.listen(PORT, () => {
   console.log(`\n🚀 MCP server started!`);
   console.log(`📍 Port: ${PORT}`);
   console.log(`🔐 Authentication: ${getAuthStrategyName()}`);
+  logOffHoursConfig();
   console.log(`🔗 MCP endpoint: ${publicUrl}/mcp`);
   console.log(`🔗 Legacy endpoint: ${publicUrl}/ (redirects to /mcp)`);
   console.log(`💚 Health check: ${publicUrl}/health`);

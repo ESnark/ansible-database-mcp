@@ -16,6 +16,8 @@ interface CliOptions {
   context?: string;
   guide?: string;
   port?: string;
+  offHours?: string;
+  offHoursMessage?: string;
   help?: boolean;
   version?: boolean;
 }
@@ -62,7 +64,19 @@ function parseArgs(args: string[]): CliOptions {
           options.port = args[++i];
         }
         break;
-      
+
+      case '--off-hours':
+        if (i + 1 < args.length) {
+          options.offHours = args[++i];
+        }
+        break;
+
+      case '--off-hours-message':
+        if (i + 1 < args.length) {
+          options.offHoursMessage = args[++i];
+        }
+        break;
+
       default:
         if (arg && arg.startsWith('--config=')) {
           options.config = arg.split('=')[1];
@@ -72,6 +86,10 @@ function parseArgs(args: string[]): CliOptions {
           options.guide = arg.split('=')[1];
         } else if (arg && arg.startsWith('--port=')) {
           options.port = arg.split('=')[1];
+        } else if (arg && arg.startsWith('--off-hours=')) {
+          options.offHours = arg.split('=')[1];
+        } else if (arg && arg.startsWith('--off-hours-message=')) {
+          options.offHoursMessage = arg.substring('--off-hours-message='.length);
         }
     }
   }
@@ -93,6 +111,8 @@ Options:
   --context <file>        Path to context.md file for database context
   --guide <file>          Path to guide.md file for query guidance
   -p, --port <port>       Port to run the server on (default: 3000)
+  --off-hours <range>     Block requests during time range (format: HH:MM-HH:MM)
+  --off-hours-message <msg>  Custom message for off-hours response
 
 Examples:
   # Run with default configuration
@@ -107,11 +127,16 @@ Examples:
   # Run on different port
   npx ansible-database-mcp --port 3001
 
+  # Block requests from 6pm to 9am (go home!)
+  npx ansible-database-mcp --off-hours 18:00-09:00
+
 Environment Variables:
   CONFIG_FILE             Path to configuration file (same as --config)
   CONTEXT_FILE            Path to context file (same as --context)
   GUIDE_FILE              Path to guide file (same as --guide)
   PORT                    Server port (same as --port)
+  OFF_HOURS               Block requests during time range (same as --off-hours)
+  OFF_HOURS_MESSAGE       Custom message for off-hours response
 `);
 }
 
@@ -158,7 +183,15 @@ function main(): void {
   if (options.port) {
     env.PORT = options.port;
   }
-  
+
+  if (options.offHours) {
+    env.OFF_HOURS = options.offHours;
+  }
+
+  if (options.offHoursMessage) {
+    env.OFF_HOURS_MESSAGE = options.offHoursMessage;
+  }
+
   // Determine the main.js path
   const mainPath = process.env.NODE_ENV === 'development'
     ? path.join(__dirname, 'main.ts')

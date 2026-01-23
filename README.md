@@ -199,6 +199,8 @@ docker run -d \
 | `BEARER_TOKEN` | Secret token for Bearer authentication | `AUTH_TYPE=bearer` |
 | `OAUTH_ISSUER` | OAuth 2.1 provider URL | `AUTH_TYPE=oauth` |
 | `OAUTH_AUDIENCE` | Expected audience for JWT tokens | `AUTH_TYPE=oauth` |
+| `OFF_HOURS` | Block all requests during time range (format: `HH:MM-HH:MM`) | Optional |
+| `OFF_HOURS_MESSAGE` | Custom message for off-hours response | Optional |
 
 ## Usage
 
@@ -219,6 +221,9 @@ npx ansible-database-mcp --port 3001
 
 # Run with Bearer token authentication
 AUTH_TYPE=bearer BEARER_TOKEN=secret npx ansible-database-mcp
+
+# Block requests during off-hours (6pm to 9am)
+npx ansible-database-mcp --off-hours 18:00-09:00
 
 # Show help
 npx ansible-database-mcp --help
