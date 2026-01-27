@@ -44,14 +44,11 @@ app.use(cors({
 // Off-hours middleware - blocks all requests during configured off-hours
 app.use(offHoursMiddleware);
 
-// MCP standard endpoint at /mcp
+// MCP endpoint at /mcp
 app.post('/mcp', authMiddleware, mcpMiddleware);
 
-// Legacy endpoint at / for backward compatibility - redirect to /mcp
-app.post('/', (_req: Request, res: Response) => {
-  console.log('Redirecting POST / to /mcp');
-  res.redirect(307, '/mcp');
-});
+// Primary endpoint at / for backward compatibility
+app.post('/', authMiddleware, mcpMiddleware);
 
 // Health check endpoint
 app.get('/health', (_req, res) => {
@@ -61,8 +58,8 @@ app.get('/health', (_req, res) => {
     version: '1.0.0',
     auth: getAuthStrategyName(),
     endpoints: {
-      mcp: '/mcp',
-      legacy: '/'
+      primary: '/',
+      mcp: '/mcp'
     }
   });
 });
@@ -111,11 +108,8 @@ if (isOAuthStrategy(authStrategy)) {
 // Handle GET requests to MCP endpoint - delegate to SDK for SSE support
 app.get('/mcp', authMiddleware, mcpMiddleware);
 
-// Legacy GET endpoint - redirect to /mcp
-app.get('/', async (_req: Request, res: Response) => {
-  console.log('Redirecting GET / to /mcp');
-  res.redirect(307, '/mcp');
-});
+// Primary GET endpoint at / for backward compatibility
+app.get('/', authMiddleware, mcpMiddleware);
 
 // Handle DELETE requests to MCP endpoint
 app.delete('/mcp', async (_req: Request, res: Response) => {
@@ -151,7 +145,7 @@ const server = app.listen(PORT, () => {
   console.log(`🔐 Authentication: ${getAuthStrategyName()}`);
   logOffHoursConfig();
   console.log(`🔗 MCP endpoint: ${publicUrl}/mcp`);
-  console.log(`🔗 Legacy endpoint: ${publicUrl}/ (redirects to /mcp)`);
+  console.log(`🔗 Primary endpoint: ${publicUrl}/`);
   console.log(`💚 Health check: ${publicUrl}/health`);
 });
 
