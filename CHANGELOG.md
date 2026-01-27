@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.6.1
+
+### Patch Changes
+
+- 676313b: Remove route redirection
+
 ## 1.6.0
 
 ### Minor Changes
