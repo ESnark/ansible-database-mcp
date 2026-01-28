@@ -1,5 +1,12 @@
 # ansible-database-mcp
 
+## 1.6.3
+
+### Patch Changes
+
+- 176f54b: Add timezone support for off hours env
+- dedd46d: allow health check and MCP handshake during off-hours
+
 ## 1.6.2
 
 ### Patch Changes
