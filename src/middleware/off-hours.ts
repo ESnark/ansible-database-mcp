@@ -13,7 +13,7 @@ import { Request, Response, NextFunction } from 'express';
  *   - "22:00-06:00" (10pm to 6am - night hours)
  */
 
-const DEFAULT_OFF_HOURS_MESSAGE = '🏠 퇴근 시간입니다! 일은 내일 하세요.';
+const DEFAULT_OFF_HOURS_MESSAGE = 'Service is unavailable during off-hours. Please try again later.';
 
 interface TimeRange {
   startHour: number;
@@ -115,8 +115,15 @@ function formatTimeRange(range: TimeRange): string {
 /**
  * Off-hours middleware
  * Blocks all requests during configured off-hours and returns a "go home" message
+ * Note: Health check endpoint is excluded to keep upstream healthy
  */
 export function offHoursMiddleware(req: Request, res: Response, next: NextFunction): void {
+  // Always allow health check endpoint for load balancer/gateway health checks
+  if (req.path === '/health') {
+    next();
+    return;
+  }
+
   const range = getOffHoursConfig();
 
   // No off-hours configured, proceed normally
