@@ -141,10 +141,15 @@ function formatTimeRange(range: TimeRange): string {
   return `${pad(range.startHour)}:${pad(range.startMinute)} ~ ${pad(range.endHour)}:${pad(range.endMinute)}`;
 }
 
+// MCP methods that should be blocked during off-hours (actual operations)
+const BLOCKED_MCP_METHODS = [
+  'tools/call',
+];
+
 /**
  * Off-hours middleware
- * Blocks all requests during configured off-hours and returns a "go home" message
- * Note: Health check endpoint is excluded to keep upstream healthy
+ * Blocks tool calls during configured off-hours while keeping connection alive
+ * Note: Health check endpoint and MCP handshake are always allowed
  */
 export function offHoursMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Always allow health check endpoint for load balancer/gateway health checks
@@ -163,26 +168,33 @@ export function offHoursMiddleware(req: Request, res: Response, next: NextFuncti
 
   // Check if current time is within blocked hours
   if (isWithinBlockedTime(range)) {
-    const timeRangeStr = formatTimeRange(range);
-    const message = getOffHoursMessage();
+    // Check the MCP method from request body
+    const method = req.body?.method;
 
-    console.log(`🌙 Request blocked during off-hours (${timeRangeStr})`);
+    // Only block specific operational methods during off-hours
+    if (method && BLOCKED_MCP_METHODS.some(blocked => method.startsWith(blocked))) {
+      const timeRangeStr = formatTimeRange(range);
+      const timezone = process.env.OFF_HOURS_TZ || 'UTC';
+      const message = getOffHoursMessage();
 
-    // Return HTTP 200 with JSON-RPC error (per JSON-RPC spec)
-    // Using 503 causes mcp-remote to treat it as connection failure
-    res.status(200).json({
-      jsonrpc: '2.0',
-      error: {
-        code: -32000,
-        message,
-        data: {
-          reason: 'off-hours',
-          blockedTimeRange: timeRangeStr,
-        }
-      },
-      id: null
-    });
-    return;
+      console.log(`🌙 Method "${method}" blocked during off-hours (${timeRangeStr} ${timezone})`);
+
+      // Return HTTP 200 with JSON-RPC error (per JSON-RPC spec)
+      res.status(200).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message,
+          data: {
+            reason: 'off-hours',
+            blockedTimeRange: `${timeRangeStr} ${timezone}`,
+            blockedMethod: method,
+          }
+        },
+        id: req.body?.id ?? null
+      });
+      return;
+    }
   }
 
   next();
