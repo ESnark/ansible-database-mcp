@@ -5,6 +5,7 @@ import { Request, Response, NextFunction } from 'express';
  *
  * Environment variables:
  *   - OFF_HOURS: Time range in "HH:MM-HH:MM" format (24-hour)
+ *   - OFF_HOURS_TZ: Timezone for off-hours (e.g., "Asia/Seoul", "UTC"). Defaults to UTC.
  *   - OFF_HOURS_MESSAGE: Custom message to display during off-hours
  *
  * Examples:
@@ -59,11 +60,39 @@ function timeToMinutes(hour: number, minute: number): number {
 }
 
 /**
+ * Get current time in configured timezone
+ */
+function getCurrentTimeInTimezone(): { hours: number; minutes: number } {
+  const timezone = process.env.OFF_HOURS_TZ || 'UTC';
+  const now = new Date();
+
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(now);
+    const hours = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+    const minutes = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+
+    return { hours, minutes };
+  } catch {
+    // Fallback to UTC if timezone is invalid
+    console.warn(`⚠️  Invalid timezone: "${timezone}", falling back to UTC`);
+    return { hours: now.getUTCHours(), minutes: now.getUTCMinutes() };
+  }
+}
+
+/**
  * Check if current time is within the blocked time range
  * Handles overnight ranges (e.g., 18:00-09:00)
  */
-function isWithinBlockedTime(range: TimeRange, now: Date = new Date()): boolean {
-  const currentMinutes = timeToMinutes(now.getHours(), now.getMinutes());
+function isWithinBlockedTime(range: TimeRange): boolean {
+  const { hours, minutes } = getCurrentTimeInTimezone();
+  const currentMinutes = timeToMinutes(hours, minutes);
   const startMinutes = timeToMinutes(range.startHour, range.startMinute);
   const endMinutes = timeToMinutes(range.endHour, range.endMinute);
 
@@ -139,7 +168,9 @@ export function offHoursMiddleware(req: Request, res: Response, next: NextFuncti
 
     console.log(`🌙 Request blocked during off-hours (${timeRangeStr})`);
 
-    res.status(503).json({
+    // Return HTTP 200 with JSON-RPC error (per JSON-RPC spec)
+    // Using 503 causes mcp-remote to treat it as connection failure
+    res.status(200).json({
       jsonrpc: '2.0',
       error: {
         code: -32000,
@@ -164,6 +195,7 @@ export function logOffHoursConfig(): void {
   const range = getOffHoursConfig();
 
   if (range) {
-    console.log(`🌙 Off-hours: ${formatTimeRange(range)} (requests will be blocked)`);
+    const timezone = process.env.OFF_HOURS_TZ || 'UTC';
+    console.log(`🌙 Off-hours: ${formatTimeRange(range)} ${timezone} (requests will be blocked)`);
   }
 }
