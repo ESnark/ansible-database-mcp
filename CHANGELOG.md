@@ -1,5 +1,11 @@
 # ansible-database-mcp
 
+## 1.6.2
+
+### Patch Changes
+
+- f10a4ad: restore health check endpoint
+
 ## 1.6.1
 
 ### Patch Changes
